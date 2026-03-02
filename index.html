@@ -781,23 +781,12 @@ select option{background:var(--surface2)}
 // ============================================================
 // CONFIG
 // ============================================================
-const GOOGLE_CLIENT_ID = '741609954421-nin44kc4ct0cskhpgd64rjtrkcc8v34e.apps.googleusercontent.com';
-const DRIVE_FILE_NAME = DRIVE_DB_FILE;
-const DRIVE_DB_FILE    = 'facadeops_data_v3.json';
+const GOOGLE_CLIENT_ID  = '741609954421-nin44kc4ct0cskhpgd64rjtrkcc8v34e.apps.googleusercontent.com';
+const DRIVE_DB_FILE     = 'facadeops_data_v3.json';
+const DRIVE_FILE_NAME   = 'facadeops_data_v3.json';
 const DRIVE_FOLDER_NAME = 'FacadeOps Files';
-// Scopes for initial sign-in (drive.appdata for DB, userinfo for profile)
-const SCOPES_BASE = [
-  'https://www.googleapis.com/auth/drive.appdata',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/userinfo.profile'
-].join(' ');
-// Full scopes including file upload (drive.file)
-const SCOPES_FULL = [
-  'https://www.googleapis.com/auth/drive.appdata',
-  'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/userinfo.profile'
-].join(' ');
+const SCOPES_BASE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
+const SCOPES_FULL = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 
 let token        = null;   // OAuth access token
 let driveFileId  = null;   // ID of the DB JSON file in appDataFolder
