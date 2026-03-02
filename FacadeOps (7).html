@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FacadeOps – Project Control System</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+:root{--bg:#0d0f14;--surface:#151820;--surface2:#1c2030;--border:#252a3a;--accent:#f0a500;--accent2:#3b82f6;--accent3:#10b981;--danger:#ef4444;--warn:#f59e0b;--text:#e8eaf0;--muted:#6b7280;--wa:#25D366}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;min-height:100vh}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:225px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.logo{padding:16px 16px 10px;border-bottom:1px solid var(--border)}
+.logo h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);line-height:1}
+.logo span{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+#syncBar{padding:5px 16px;font-size:10px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border);min-height:26px}
+#syncBar.synced{color:var(--accent3)}#syncBar.syncing{color:var(--warn)}#syncBar.error{color:var(--danger)}#syncBar.offline{color:var(--muted)}
+.nav-section{padding:10px 0}
+.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:0 16px 5px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:var(--text);background:var(--surface2)}
+.nav-item.active{color:var(--accent);background:rgba(240,165,0,.08);border-left-color:var(--accent)}
+.nav-item .icon{font-size:14px;width:18px;text-align:center}
+.sidebar-project{padding:6px 16px}
+.project-chip{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;cursor:pointer;margin-bottom:5px;transition:border-color .15s}
+.project-chip:hover,.project-chip.active{border-color:var(--accent)}
+.project-chip .pname{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.project-chip .pstage{font-size:9px;color:var(--muted)}
+.progress-mini{height:2px;background:var(--border);border-radius:2px;margin-top:4px}
+.progress-mini-fill{height:100%;border-radius:2px;background:var(--accent3)}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover{background:#ffc333}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:var(--danger);color:#fff}.btn-success{background:var(--accent3);color:#fff}
+.btn-wa{background:var(--wa);color:#fff}.btn-blue{background:var(--accent2);color:#fff}
+.btn-sm{padding:5px 12px;font-size:12px}
+.content{padding:24px;flex:1}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px}
+.card-title{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:10px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:3px}
+.stat-value{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;color:var(--accent)}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:7px 10px;border-bottom:1px solid var(--border);font-weight:500}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}.tbl tr:hover td{background:var(--surface2)}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.badge-green{background:rgba(16,185,129,.15);color:var(--accent3)}.badge-yellow{background:rgba(245,158,11,.15);color:var(--warn)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--accent2)}.badge-red{background:rgba(239,68,68,.15);color:var(--danger)}
+.badge-gray{background:rgba(107,114,128,.15);color:var(--muted)}.badge-orange{background:rgba(249,115,22,.15);color:#f97316}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.form-full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600}
+.field input,.field select,.field textarea{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:55px}
+select option{background:var(--surface2)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:660px;max-width:96vw;max-height:92vh;overflow-y:auto}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px}
+.modal-body{padding:20px}.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 5px}.close-btn:hover{color:var(--text)}
+.stage-timeline{display:flex;overflow-x:auto;margin-bottom:16px;padding-bottom:4px}
+.stage-step{flex:1;min-width:75px;text-align:center;position:relative}
+.stage-step::before{content:'';position:absolute;top:14px;left:50%;right:-50%;height:2px;background:var(--border);z-index:0}
+.stage-step:last-child::before{display:none}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:10px;font-weight:700;position:relative;z-index:1;transition:all .2s}
+.step-circle.done{background:var(--accent3);border-color:var(--accent3);color:#fff}
+.step-circle.active{background:var(--accent);border-color:var(--accent);color:#000}
+.step-label{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.step-label.active{color:var(--accent)}
+.progress-bar{height:7px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap;overflow-x:auto}
+.tab{padding:10px 18px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.task-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border)}
+.task-row:last-child{border-bottom:none}
+.task-check{width:17px;height:17px;border-radius:4px;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.task-check.done{background:var(--accent3);border-color:var(--accent3);color:#fff;font-size:10px}
+.task-text{flex:1;font-size:12px}.task-text.done{text-decoration:line-through;color:var(--muted)}
+.alert{padding:9px 12px;border-radius:7px;margin-bottom:8px;font-size:12px;display:flex;gap:7px;align-items:flex-start}
+.alert-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--warn)}
+.alert-danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--danger)}
+.alert-info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent2)}
+.alert-success{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--accent3)}
+.view{display:none}.view.active{display:block}
+.empty{text-align:center;padding:40px;color:var(--muted)}.empty-icon{font-size:40px;margin-bottom:10px}
+.chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;cursor:pointer;transition:all .15s}
+.chip.active{background:rgba(240,165,0,.15);border-color:var(--accent);color:var(--accent)}
+#authScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;display:flex;flex-direction:column;align-items:center;gap:16px;max-width:420px;width:90%;text-align:center}
+.auth-card h2{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:4px;color:var(--accent)}
+.auth-card p{color:var(--muted);font-size:13px;line-height:1.6}
+.btn-google{background:#fff;color:#333;border:1px solid #ddd;font-size:13px;padding:11px 22px}
+.btn-google:hover{background:#f5f5f5}
+.rev-badge{background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:'DM Mono',monospace}
+.wa-preview{background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.3);border-radius:8px;padding:12px;margin-top:10px}
+.issue-row{padding:10px;border-bottom:1px solid var(--border);font-size:12px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.file-attach{background:var(--surface2);border:1px dashed var(--border);border-radius:6px;padding:10px;text-align:center;cursor:pointer;font-size:11px;color:var(--muted);transition:border-color .15s}
+.file-attach:hover{border-color:var(--accent);color:var(--accent)}
+.attached-file{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;margin:2px}
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 768px) {
+  .app{flex-direction:column;height:auto;min-height:100vh}
+  .sidebar{width:100%;height:auto;flex-direction:column;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible}
+  .logo{padding:12px 16px 8px;display:flex;justify-content:space-between;align-items:center}
+  #sidebar-toggle{display:flex;background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer}
+  #sidebar-nav{display:none;flex-direction:column}
+  #sidebar-nav.open{display:flex}
+  .nav-section{padding:6px 0}
+  .nav-item{padding:10px 16px;font-size:14px}
+  .sidebar-project{display:none}
+  .main{width:100%;overflow-y:auto}
+  .topbar{padding:10px 16px;flex-wrap:wrap;gap:8px}
+  .page-title{font-size:22px}
+  .topbar-actions{flex-wrap:wrap;gap:6px}
+  .content{padding:14px}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .form-grid{grid-template-columns:1fr}
+  .form-grid-3{grid-template-columns:1fr}
+  .form-full{grid-column:1}
+  .modal{width:98vw;max-height:95vh;border-radius:8px}
+  .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .stage-timeline{overflow-x:auto}
+  .tabs{overflow-x:auto;flex-wrap:nowrap}
+  .tab{white-space:nowrap;padding:8px 12px;font-size:12px}
+  #projectDetailView > div:first-child{flex-wrap:wrap}
+  .btn{padding:7px 12px;font-size:12px}
+  .btn-sm{padding:4px 8px;font-size:11px}
+  [style*="grid-template-columns:1fr 1fr"]{display:grid!important;grid-template-columns:1fr!important}
+  [style*="display:grid;grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  .stat-card{padding:10px}
+  .stat-value{font-size:24px}
+}
+@media (max-width: 480px) {
+  .stats-row{grid-template-columns:1fr 1fr}
+  .topbar-actions .btn{font-size:11px;padding:5px 8px}
+}
+/* Always show toggle on mobile */
+#sidebar-toggle{display:none}
+@media(max-width:768px){#sidebar-toggle{display:flex}}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div style="font-size:50px">🏗️</div>
+    <h2>FacadeOps</h2>
+    <p>Complete Facade Project Management System.<br>Sign in with Google to sync all data across all your devices — completely free.</p>
+    <button class="btn btn-google" onclick="handleGoogleSignIn()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:16px;height:16px;vertical-align:middle;margin-right:6px">Sign in with Google
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="startDemoMode()" style="font-size:11px">Continue without Google (local only)</button>
+    <div id="authStatus" style="font-size:11px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="mainApp" style="display:none">
+<div class="sidebar">
+  <div class="logo">
+    <div><h1>FacadeOps</h1><span>Project Control System</span></div>
+    <button id="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+  </div>
+  <div id="syncBar" class="offline">Not connected</div>
+  <div id="sidebar-nav">
+  <div class="nav-section">
+    <div class="nav-label">Main Menu</div>
+    <div class="nav-item active" onclick="navigate('dashboard')"><span class="icon">🏠</span> Dashboard</div>
+    <div class="nav-item" onclick="navigate('projects')"><span class="icon">🏗️</span> Projects</div>
+    <div class="nav-item" onclick="navigate('tasks')"><span class="icon">✅</span> Tasks</div>
+    <div class="nav-item" onclick="navigate('issues')"><span class="icon">⚠️</span> Issues</div>
+    <div class="nav-item" onclick="navigate('materials')"><span class="icon">📦</span> Materials</div>
+    <div class="nav-item" onclick="navigate('tools')"><span class="icon">🔧</span> Tools</div>
+    <div class="nav-item" onclick="navigate('labor')"><span class="icon">👷</span> Labor</div>
+    <div class="nav-item" onclick="navigate('finance')"><span class="icon">💰</span> Finance</div>
+    <div class="nav-item" onclick="navigate('documents')"><span class="icon">📄</span> Documents</div>
+    <div class="nav-item" onclick="navigate('reports')"><span class="icon">📊</span> Reports</div>
+    <div class="nav-item" onclick="navigate('files')"><span class="icon">&#128193;</span> Files</div>
+    <div class="nav-item" onclick="navigate('team')"><span class="icon">👥</span> Team &amp; WhatsApp</div>
+  </div>
+  <div class="nav-section" style="border-top:1px solid var(--border)">
+    <div class="nav-label">Active Projects</div>
+    <div class="sidebar-project" id="sidebarProjects"></div>
+    <div style="padding:0 16px 12px"><button class="btn btn-primary btn-sm" style="width:100%" onclick="openNewProjectModal()">+ New Project</button></div>
+  </div>
+  <div style="padding:10px 16px;border-top:1px solid var(--border);margin-top:auto">
+    <div id="userInfo" style="font-size:10px;color:var(--muted);margin-bottom:6px"></div>
+    <button class="btn btn-outline btn-sm" style="width:100%" onclick="handleSignOut()">Sign Out</button>
+  </div>
+  </div><!-- end sidebar-nav -->
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="pageTitle">DASHBOARD</div>
+    <div class="topbar-actions" id="topbarActions">
+      <button class="btn btn-outline btn-sm" onclick="syncNow()">🔄 Sync</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <div class="view active" id="view-dashboard">
+      <div class="stats-row" id="dashStats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card"><div class="card-title">Alerts &amp; Action Items</div><div id="dashAlerts"></div></div>
+        <div class="card"><div class="card-title">Recent Activity</div><div id="dashActivity" style="font-size:12px;color:var(--muted)">No activity yet.</div></div>
+      </div>
+      <div class="card"><div class="card-title">All Projects Overview</div>
+        <table class="tbl"><thead><tr><th>Project</th><th>Client</th><th>Stage</th><th>Progress</th><th>Deadline</th><th>Status</th></tr></thead>
+        <tbody id="dashProjectRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-projects">
+      <div id="projectListView">
+        <div class="card"><table class="tbl"><thead><tr><th>Project</th><th>Client</th><th>Value</th><th>Stage</th><th>Progress</th><th>Actions</th></tr></thead>
+        <tbody id="projectRows"></tbody></table></div>
+      </div>
+      <div id="projectDetailView" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="showProjectList()">← Back</button>
+          <span id="detailProjectName" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;flex:1"></span>
+          <button class="btn btn-blue btn-sm" onclick="editProject(currentProject)">Edit Project Details</button>
+          <button class="btn btn-outline btn-sm" onclick="openVariationModal(currentProject)">+ Variation Order</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Project Stage</div>
+          <div class="stage-timeline" id="stageTimeline"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="stageButtons"></div>
+        </div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab(this,'ptab-overview')">Overview</div>
+          <div class="tab" onclick="switchTab(this,'ptab-tasks')">Tasks</div>
+          <div class="tab" onclick="switchTab(this,'ptab-revisions')">Revisions</div>
+          <div class="tab" onclick="switchTab(this,'ptab-materials')">Materials</div>
+          <div class="tab" onclick="switchTab(this,'ptab-delivery')">Delivery & Certs</div>
+          <div class="tab" onclick="switchTab(this,'ptab-mir')">MIR</div>
+          <div class="tab" onclick="switchTab(this,'ptab-issues')">Issues</div>
+          <div class="tab" onclick="switchTab(this,'ptab-tools')">Tools</div>
+          <div class="tab" onclick="switchTab(this,'ptab-labor')">Labor</div>
+          <div class="tab" onclick="switchTab(this,'ptab-finance')">Finance</div>
+          <div class="tab" onclick="switchTab(this,'ptab-docs')">Documents</div>
+          <div class="tab" onclick="switchTab(this,'ptab-log')">Daily Log</div>
+        </div>
+        <div id="ptab-overview" class="project-tab"></div>
+        <div id="ptab-tasks" class="project-tab" style="display:none"></div>
+        <div id="ptab-revisions" class="project-tab" style="display:none"></div>
+        <div id="ptab-materials" class="project-tab" style="display:none"></div>
+        <div id="ptab-delivery" class="project-tab" style="display:none"></div>
+        <div id="ptab-mir" class="project-tab" style="display:none"></div>
+        <div id="ptab-issues" class="project-tab" style="display:none"></div>
+        <div id="ptab-tools" class="project-tab" style="display:none"></div>
+        <div id="ptab-labor" class="project-tab" style="display:none"></div>
+        <div id="ptab-finance" class="project-tab" style="display:none"></div>
+        <div id="ptab-docs" class="project-tab" style="display:none"></div>
+        <div id="ptab-log" class="project-tab" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-tasks">
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap" id="taskFilterChips"></div>
+      <div class="card"><table class="tbl"><thead><tr><th>Task</th><th>Project</th><th>Assigned To</th><th>Due</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="taskRows"></tbody></table></div>
+    </div>
+
+    <div class="view" id="view-issues">
+      <div class="card"><div class="card-title">Issue Tracker — All Projects</div>
+        <table class="tbl"><thead><tr><th>Issue</th><th>Project</th><th>Severity</th><th>Raised By</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="issueRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-materials">
+      <div class="card"><div class="card-title">Material Procurement &amp; Batch Delivery Tracker</div>
+        <table class="tbl"><thead><tr><th>Material</th><th>Project</th><th>Required</th><th>Ordered</th><th>Delivered</th><th>Remaining</th><th>Batches</th><th>Need By</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="materialRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-tools">
+      <div class="card"><div class="card-title">Tools &amp; Equipment Tracker</div>
+        <table class="tbl"><thead><tr><th>Tool</th><th>Project</th><th>Required</th><th>Available</th><th>Shortfall</th><th>Need By</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="toolRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-labor">
+      <div class="card"><div class="card-title">Labor &amp; Manpower Tracker</div>
+        <table class="tbl"><thead><tr><th>Trade</th><th>Project</th><th>Required</th><th>Deployed</th><th>Shortfall</th><th>Mob. Date</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="laborRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-finance">
+      <div class="stats-row" id="finStats"></div>
+      <div class="card"><div class="card-title">Payment &amp; Invoice Log</div>
+        <table class="tbl"><thead><tr><th>Project</th><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody id="finRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-documents">
+      <div class="card"><div class="card-title">Document Register</div>
+        <table class="tbl"><thead><tr><th>Document</th><th>Project</th><th>Type</th><th>By</th><th>Date</th><th>Status</th><th>File</th></tr></thead>
+        <tbody id="docRows"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-reports">
+      <!-- Report Generator -->
+      <div class="card">
+        <div class="card-title">Generate & Download Reports</div>
+        <div class="form-grid" style="margin-bottom:14px">
+          <div class="field">
+            <label>Report Type</label>
+            <select id="rpt-type">
+              <option value="project">Project Summary Report</option>
+              <option value="tasks">Tasks Report</option>
+              <option value="issues">Issues Report</option>
+              <option value="materials">Materials & Procurement Report</option>
+              <option value="labor">Labor Report</option>
+              <option value="tools">Tools & Equipment Report</option>
+              <option value="finance">Finance Report</option>
+              <option value="documents">Documents Register</option>
+              <option value="site">Site Daily Log Report</option>
+              <option value="full">Full Project Report (All)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Filter by Project</label>
+            <select id="rpt-project">
+              <option value="all">All Projects</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>From Date</label>
+            <input id="rpt-from" type="date">
+          </div>
+          <div class="field">
+            <label>To Date</label>
+            <input id="rpt-to" type="date">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="generateReport('pdf')">Download PDF Report</button>
+          <button class="btn btn-success" onclick="generateReport('excel')">Download Excel Report</button>
+          <button class="btn btn-outline" onclick="previewReport()">Preview Report</button>
+        </div>
+      </div>
+      <!-- Project Summary Cards -->
+      <div class="card-title" style="margin-top:8px;padding:0 4px">Project Overview Cards</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="reportCards"></div>
+    </div>
+    
+    <!-- Files Manager View -->
+    <div class="view" id="view-files">
+      <div class="card">
+        <div class="card-title">All Uploaded Files</div>
+        <div id="fileManagerList"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-team">
+      <div class="card" style="max-width:750px">
+        <div class="card-title">Team Members &amp; WhatsApp Notifications</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Add team members with their WhatsApp numbers. When you assign a task, a WhatsApp message opens automatically.</p>
+        <div id="teamList" style="margin-bottom:14px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
+          <div class="field"><label>Name</label><input id="tm-name" placeholder="e.g. Rahul Sharma"></div>
+          <div class="field"><label>WhatsApp No. (with country code)</label><input id="tm-phone" placeholder="919876543210"></div>
+          <div class="field"><label>Role</label><select id="tm-role"><option>Drawing Team</option><option>Estimation</option><option>Procurement</option><option>Finance</option><option>Admin</option><option>Site Supervisor</option><option>Other</option></select></div>
+          <button class="btn btn-primary" onclick="addTeamMember()" style="height:36px;margin-top:auto">+ Add</button>
+        </div>
+        <div class="alert alert-info" style="margin-top:12px">
+          India number format: <b>91</b> + 10-digit mobile. Example: <b>919876543210</b><br>
+          No + sign. No spaces. No dashes.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-addProject">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="addProjectTitle">NEW PROJECT</div><button class="close-btn" onclick="closeModal('addProject')">x</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="np-id">
+      <div class="form-grid">
+        <div class="field form-full"><label>Project Name *</label><input id="np-name" placeholder="e.g. Wagle Trade Centre Facade"></div>
+        <div class="field form-full"><label>Client / Company</label><input id="np-client"></div>
+        <div class="field"><label>Project Type</label><select id="np-type"><option>Curtain Wall</option><option>Aluminium Cladding</option><option>Glass Facade</option><option>Composite Panels</option><option>Stone Cladding</option><option>Mixed Facade</option></select></div>
+        <div class="field"><label>Current Stage</label><select id="np-stage"><option>Enquiry</option><option>Estimation</option><option>Tender Submitted</option><option>Contract Signed</option><option>Drawing</option><option>Material Approval</option><option>Fabrication</option><option>Site Installation</option><option>Snagging</option><option>Handover</option></select></div>
+        <div class="field"><label>Start Date</label><input id="np-start" type="date"></div>
+        <div class="field"><label>Completion Deadline</label><input id="np-end" type="date"></div>
+        <div class="field form-full"><label>Site Address</label><input id="np-location"></div>
+        <div class="field form-full"><label>Scope of Work</label><textarea id="np-desc"></textarea></div>
+        <div class="field"><label>Consultant / Architect</label><input id="np-consultant"></div>
+        <div class="field"><label>Main Contractor</label><input id="np-mc"></div>
+      </div>
+      <div style="margin-top:16px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:12px">Project Value — Enter what is known at this stage</div>
+        <div class="form-grid">
+          <div class="field"><label>Estimated Value (Rs.) — Enquiry/Estimation stage</label><input id="np-estimated" type="number" placeholder="Rough estimate e.g. 5000000"></div>
+          <div class="field"><label>Quoted / Tender Value (Rs.) — After Estimation</label><input id="np-quoted" type="number" placeholder="Value quoted to client"></div>
+          <div class="field"><label>Awarded / Contract Value (Rs.) — After Contract Signed</label><input id="np-value" type="number" placeholder="Final awarded amount"></div>
+          <div class="field"><label>Revised Value (Rs.) — After Variation Orders</label><input id="np-revised" type="number" placeholder="After add/deduct variations"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Fill only what applies. Leave others blank. You can update anytime by clicking Edit Project.</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addProject')">Cancel</button><button class="btn btn-primary" id="saveProjectBtn" onclick="saveProject()">Create Project</button></div>
+  </div>
+</div>
+
+<!-- EDIT TASK MODAL -->
+<div class="modal-overlay" id="modal-editTask">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">EDIT TASK</div><button class="close-btn" onclick="closeModal('editTask')">x</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="et-id">
+      <div class="form-grid">
+        <div class="field form-full"><label>Task Description *</label><input id="et-task"></div>
+        <div class="field"><label>Assign To</label><select id="et-assign"></select></div>
+        <div class="field"><label>Due Date</label><input id="et-due" type="date"></div>
+        <div class="field"><label>Priority</label><select id="et-priority"><option>High</option><option>Medium</option><option>Low</option></select></div>
+        <div class="field"><label>Status</label><select id="et-status"><option>Pending</option><option>In Progress</option><option>Done</option></select></div>
+        <div class="field form-full"><label>Notes</label><textarea id="et-notes"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('editTask')">Cancel</button><button class="btn btn-primary" onclick="saveEditTask()">Save Changes</button></div>
+  </div>
+</div>
+
+<!-- EDIT MATERIAL MODAL -->
+<div class="modal-overlay" id="modal-editMaterial">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">EDIT MATERIAL</div><button class="close-btn" onclick="closeModal('editMaterial')">x</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="em-id">
+      <div class="form-grid">
+        <div class="field form-full"><label>Material Name</label><input id="em-name"></div>
+        <div class="field"><label>Unit</label><select id="em-unit"><option>Nos</option><option>Kg</option><option>MT</option><option>Sqm</option><option>Lm</option><option>Litre</option><option>Box</option><option>Roll</option><option>Set</option></select></div>
+        <div class="field"><label>Total Required Qty</label><input id="em-qty" type="number"></div>
+        <div class="field"><label>Qty Ordered</label><input id="em-procured" type="number"></div>
+        <div class="field"><label>Need By Date</label><input id="em-needby" type="date"></div>
+        <div class="field"><label>Supplier</label><input id="em-supplier"></div>
+        <div class="field"><label>Unit Rate (Rs.)</label><input id="em-rate" type="number"></div>
+        <div class="field form-full"><label>Remarks</label><input id="em-remarks"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('editMaterial')">Cancel</button><button class="btn btn-primary" onclick="saveEditMaterial()">Save Changes</button></div>
+  </div>
+</div>
+
+<!-- EDIT ISSUE MODAL -->
+<div class="modal-overlay" id="modal-editIssue">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">EDIT ISSUE</div><button class="close-btn" onclick="closeModal('editIssue')">x</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ei-id">
+      <div class="form-grid">
+        <div class="field form-full"><label>Issue Title</label><input id="ei-title"></div>
+        <div class="field"><label>Severity</label><select id="ei-severity"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+        <div class="field"><label>Status</label><select id="ei-status"><option>Open</option><option>In Progress</option><option>Resolved</option><option>Closed</option></select></div>
+        <div class="field"><label>Target Resolution Date</label><input id="ei-target" type="date"></div>
+        <div class="field form-full"><label>Description / Update</label><textarea id="ei-desc"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('editIssue')">Cancel</button><button class="btn btn-primary" onclick="saveEditIssue()">Save Changes</button></div>
+  </div>
+</div>
+
+<!-- VARIATION ORDER MODAL -->
+<div class="modal-overlay" id="modal-addVariation">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD VARIATION ORDER</div><button class="close-btn" onclick="closeModal('addVariation')">x</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:14px">Variation Orders change the project value — either adding extra work (+) or deducting existing scope (-)</div>
+      <div class="form-grid">
+        <div class="field form-full"><label>Variation Description *</label><input id="vo-desc" placeholder="e.g. Additional glass panel at Level 5 entrance"></div>
+        <div class="field"><label>VO Number</label><input id="vo-no" placeholder="VO-001"></div>
+        <div class="field"><label>Type</label><select id="vo-type"><option>Addition (+) — Extra Work</option><option>Deduction (-) — Scope Removed</option></select></div>
+        <div class="field"><label>Amount (Rs.)</label><input id="vo-amount" type="number" placeholder="0"></div>
+        <div class="field"><label>Date</label><input id="vo-date" type="date"></div>
+        <div class="field"><label>Status</label><select id="vo-status"><option>Pending Approval</option><option>Approved</option><option>Rejected</option></select></div>
+        <div class="field form-full"><label>Remarks</label><textarea id="vo-remarks" placeholder="Any details about this variation..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addVariation')">Cancel</button><button class="btn btn-primary" onclick="addVariation()">Save Variation</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addTask">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD TASK</div><button class="close-btn" onclick="closeModal('addTask')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Task Description *</label><input id="at-task" oninput="updateWAPreview()"></div>
+        <div class="field"><label>Project</label><select id="at-project" onchange="updateWAPreview()"></select></div>
+        <div class="field"><label>Assign To</label><select id="at-assign" onchange="updateWAPreview()"></select></div>
+        <div class="field"><label>Due Date</label><input id="at-due" type="date" onchange="updateWAPreview()"></div>
+        <div class="field"><label>Priority</label><select id="at-priority" onchange="updateWAPreview()"><option>High</option><option>Medium</option><option>Low</option></select></div>
+        <div class="field form-full"><label>Notes</label><textarea id="at-notes" oninput="updateWAPreview()"></textarea></div>
+      </div>
+      <div id="wa-preview-box" style="display:none;margin-top:12px" class="wa-preview">
+        <div style="font-size:10px;color:var(--wa);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">WhatsApp Message Preview</div>
+        <div id="wa-preview-text" style="font-size:12px;white-space:pre-wrap;line-height:1.6;font-family:'DM Mono',monospace;color:var(--text)"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">This message will open in WhatsApp automatically after saving</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addTask')">Cancel</button>
+      <button class="btn btn-primary" id="addTaskBtn" onclick="addTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addRevision">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD REVISION / SUBMISSION</div><button class="close-btn" onclick="closeModal('addRevision')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Title / Description *</label><input id="rv-title" placeholder="e.g. Shop Drawing – Curtain Wall Grid A"></div>
+        <div class="field"><label>Type</label><select id="rv-type"><option>Drawing Submission</option><option>Quotation / Estimation</option><option>Material Submittal</option><option>Method Statement</option><option>RFI Response</option><option>Other Submission</option></select></div>
+        <div class="field"><label>Revision No.</label><select id="rv-rev"><option>R_0</option><option>R_1</option><option>R_2</option><option>R_3</option><option>R_4</option><option>R_5</option><option>R_6</option><option>R_7</option><option>R_8</option><option>R_9</option></select></div>
+        <div class="field"><label>Submitted To</label><input id="rv-to" placeholder="Consultant / Client name"></div>
+        <div class="field"><label>Submitted By</label><select id="rv-by"><option>Drawing Team</option><option>Estimation</option><option>Manager</option><option>Admin</option></select></div>
+        <div class="field"><label>Submission Date</label><input id="rv-date" type="date"></div>
+        <div class="field"><label>Status</label><select id="rv-status"><option>Submitted</option><option>Under Review</option><option>Approved</option><option>Approved with Comments</option><option>Rejected – Revise &amp; Resubmit</option></select></div>
+        <div class="field form-full"><label>Comments / Notes</label><textarea id="rv-notes"></textarea></div>
+        <div class="field form-full"><label>Attach File (max 200MB)</label>
+          <input type="file" id="rv-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px" multiple accept="*/*">
+          <span style="font-size:10px;color:var(--muted)">Optional – attach drawing, quote, PDF etc.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addRevision')">Cancel</button><button class="btn btn-primary" onclick="addRevision()">Save Revision</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addMaterial">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD MATERIAL</div><button class="close-btn" onclick="closeModal('addMaterial')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Material Name *</label><input id="am-name" placeholder="e.g. Aluminium Sections 100x50"></div>
+        <div class="field"><label>Project</label><select id="am-project"></select></div>
+        <div class="field"><label>Unit</label><select id="am-unit"><option>Nos</option><option>Kg</option><option>MT</option><option>Sqm</option><option>Lm</option><option>Litre</option><option>Box</option><option>Roll</option><option>Set</option></select></div>
+        <div class="field"><label>Total Required Qty</label><input id="am-qty" type="number" placeholder="0"></div>
+        <div class="field"><label>Qty Already Ordered</label><input id="am-procured" type="number" value="0"></div>
+        <div class="field"><label>Need By Date</label><input id="am-needby" type="date"></div>
+        <div class="field"><label>Supplier</label><input id="am-supplier"></div>
+        <div class="field"><label>Unit Rate (Rs.)</label><input id="am-rate" type="number" value="0"></div>
+        <div class="field form-full"><label>Remarks</label><input id="am-remarks"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addMaterial')">Cancel</button><button class="btn btn-primary" onclick="addMaterial()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addBatch">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD DELIVERY BATCH</div><button class="close-btn" onclick="closeModal('addBatch')">x</button></div>
+    <div class="modal-body">
+      <div id="batch-material-info" style="padding:10px;background:var(--surface2);border-radius:6px;margin-bottom:14px;font-size:12px"></div>
+      <div class="form-grid">
+        <div class="field"><label>Batch / Delivery No.</label><input id="bt-no" placeholder="e.g. Batch 1, Delivery 2"></div>
+        <div class="field"><label>Qty in This Batch</label><input id="bt-qty" type="number" placeholder="0"></div>
+        <div class="field"><label>Delivery Date</label><input id="bt-date" type="date"></div>
+        <div class="field"><label>Vehicle / Challan No.</label><input id="bt-vehicle" placeholder="Truck/Challan number"></div>
+        <div class="field"><label>Received By</label><input id="bt-received" placeholder="Name of person who received"></div>
+        <div class="field"><label>Condition</label><select id="bt-condition"><option>Good</option><option>Damaged – Some items</option><option>Damaged – All items</option><option>Short Supply</option></select></div>
+        <div class="field form-full"><label>Remarks</label><input id="bt-remarks"></div>
+        <div class="field form-full"><label>Attach Delivery Challan / Photo (max 200MB)</label>
+          <input type="file" id="bt-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addBatch')">Cancel</button><button class="btn btn-primary" onclick="addBatch()">Save Batch</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addCert">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD TEST CERTIFICATE</div><button class="close-btn" onclick="closeModal('addCert')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Certificate Name *</label><input id="ct-name" placeholder="e.g. Glass Test Certificate – 8mm Toughened"></div>
+        <div class="field"><label>Material / Item</label><input id="ct-material" placeholder="Material this cert is for"></div>
+        <div class="field"><label>Certificate No.</label><input id="ct-no" placeholder="Cert. reference number"></div>
+        <div class="field"><label>Issued By (Lab / Agency)</label><input id="ct-issuer" placeholder="Testing lab name"></div>
+        <div class="field"><label>Issue Date</label><input id="ct-date" type="date"></div>
+        <div class="field"><label>Valid Until</label><input id="ct-valid" type="date"></div>
+        <div class="field"><label>Status</label><select id="ct-status"><option>Received</option><option>Pending from Supplier</option><option>Submitted to Consultant</option><option>Approved</option><option>Rejected</option></select></div>
+        <div class="field form-full"><label>Notes</label><textarea id="ct-notes"></textarea></div>
+        <div class="field form-full"><label>Attach Certificate (max 200MB)</label>
+          <input type="file" id="ct-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addCert')">Cancel</button><button class="btn btn-primary" onclick="addCert()">Save Certificate</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addMIR">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">MATERIAL INSPECTION REPORT (MIR)</div><button class="close-btn" onclick="closeModal('addMIR')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>MIR Title *</label><input id="mir-title" placeholder="e.g. MIR-001 Aluminium Profile Inspection"></div>
+        <div class="field"><label>MIR Number</label><input id="mir-no" placeholder="MIR-001"></div>
+        <div class="field"><label>Material Being Inspected</label><input id="mir-material" placeholder="Material name"></div>
+        <div class="field"><label>Inspection Date</label><input id="mir-date" type="date"></div>
+        <div class="field"><label>Inspected By</label><input id="mir-by" placeholder="Inspector name"></div>
+        <div class="field"><label>Client Representative</label><input id="mir-client-rep" placeholder="Client name who will sign"></div>
+        <div class="field"><label>Inspection Result</label><select id="mir-result"><option>Pass</option><option>Pass with Conditions</option><option>Fail – Rejected</option><option>Pending Inspection</option></select></div>
+        <div class="field"><label>Client Signature Status</label><select id="mir-sig"><option>Pending Signature</option><option>Signed – Approved</option><option>Signed – Rejected</option><option>Awaiting Client Visit</option></select></div>
+        <div class="field form-full"><label>Inspection Details / Findings</label><textarea id="mir-notes" placeholder="Describe what was inspected and findings..."></textarea></div>
+        <div class="field form-full"><label>Attach MIR Document (max 200MB)</label>
+          <input type="file" id="mir-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addMIR')">Cancel</button><button class="btn btn-primary" onclick="addMIR()">Save MIR</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addIssue">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">RAISE ISSUE</div><button class="close-btn" onclick="closeModal('addIssue')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Issue Title *</label><input id="is-title" placeholder="Brief description of the issue"></div>
+        <div class="field"><label>Project</label><select id="is-project"></select></div>
+        <div class="field"><label>Severity</label><select id="is-severity"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+        <div class="field"><label>Category</label><select id="is-cat"><option>Design Issue</option><option>Material Issue</option><option>Site / Installation Issue</option><option>Client Issue</option><option>Subcontractor Issue</option><option>Safety Issue</option><option>Financial Issue</option><option>Other</option></select></div>
+        <div class="field"><label>Raised By</label><select id="is-by"><option>Manager</option><option>Site Supervisor</option><option>Drawing Team</option><option>Client</option><option>Consultant</option><option>Other</option></select></div>
+        <div class="field"><label>Date Raised</label><input id="is-date" type="date"></div>
+        <div class="field"><label>Assigned To (for resolution)</label><select id="is-assign"></select></div>
+        <div class="field"><label>Target Resolution Date</label><input id="is-target" type="date"></div>
+        <div class="field form-full"><label>Detailed Description</label><textarea id="is-desc" placeholder="Full details of the issue..."></textarea></div>
+        <div class="field form-full"><label>Attach File (max 200MB)</label>
+          <input type="file" id="is-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addIssue')">Cancel</button><button class="btn btn-primary" onclick="addIssue()">Raise Issue</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addTool">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD TOOL / EQUIPMENT</div><button class="close-btn" onclick="closeModal('addTool')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Tool Name *</label><input id="tl-name" placeholder="e.g. Gondola, Drill Machine, Scaffold"></div>
+        <div class="field"><label>Project</label><select id="tl-project"></select></div>
+        <div class="field"><label>Qty Required</label><input id="tl-qty" type="number" value="1"></div>
+        <div class="field"><label>Qty Mobilized</label><input id="tl-avail" type="number" value="0"></div>
+        <div class="field"><label>Need By Date</label><input id="tl-needby" type="date"></div>
+        <div class="field"><label>Source</label><select id="tl-source"><option>Owned</option><option>Rented</option><option>To Purchase</option></select></div>
+        <div class="field form-full"><label>Remarks</label><input id="tl-remarks"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addTool')">Cancel</button><button class="btn btn-primary" onclick="addTool()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addLabor">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD LABOR / MANPOWER</div><button class="close-btn" onclick="closeModal('addLabor')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Trade / Role *</label><input id="lb-trade" placeholder="e.g. Aluminum Fabricator, Glass Fixer, Welder"></div>
+        <div class="field"><label>Project</label><select id="lb-project"></select></div>
+        <div class="field"><label>No. Required</label><input id="lb-req" type="number" value="1"></div>
+        <div class="field"><label>No. Deployed</label><input id="lb-dep" type="number" value="0"></div>
+        <div class="field"><label>Mobilization Date</label><input id="lb-mobdate" type="date"></div>
+        <div class="field"><label>Source</label><select id="lb-source"><option>Own Workers</option><option>Subcontractor</option><option>Daily Hire</option></select></div>
+        <div class="field form-full"><label>Remarks</label><input id="lb-remarks"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addLabor')">Cancel</button><button class="btn btn-primary" onclick="addLabor()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addFinance">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD FINANCE ENTRY</div><button class="close-btn" onclick="closeModal('addFinance')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Project</label><select id="fn-project"></select></div>
+        <div class="field"><label>Type</label><select id="fn-type"><option>Invoice to Client</option><option>Payment from Client</option><option>Material Cost</option><option>Labor Cost</option><option>Equipment Cost</option><option>Subcontractor Payment</option><option>Other Expense</option></select></div>
+        <div class="field form-full"><label>Description</label><input id="fn-desc" placeholder="e.g. Invoice #3 - 40% progress billing"></div>
+        <div class="field"><label>Amount (Rs.)</label><input id="fn-amount" type="number" value="0"></div>
+        <div class="field"><label>Date</label><input id="fn-date" type="date"></div>
+        <div class="field"><label>Status</label><select id="fn-status"><option>Pending</option><option>Paid</option><option>Received</option><option>Overdue</option></select></div>
+        <div class="field form-full"><label>Remarks</label><input id="fn-remarks"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addFinance')">Cancel</button><button class="btn btn-primary" onclick="addFinance()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addDocument">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ADD DOCUMENT</div><button class="close-btn" onclick="closeModal('addDocument')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full"><label>Document Name *</label><input id="dc-name" placeholder="e.g. Shop Drawing Rev 2, Approved Submittal"></div>
+        <div class="field"><label>Project</label><select id="dc-project"></select></div>
+        <div class="field"><label>Document Type</label><select id="dc-type"><option>Shop Drawing</option><option>Material Submittal</option><option>Method Statement</option><option>Risk Assessment</option><option>Inspection Request</option><option>RFI</option><option>MIR - Material Inspection Report</option><option>WIR - Work Inspection Report</option><option>WIR - Work Inspection Report</option><option>Contract</option><option>BOQ</option><option>Invoice</option><option>Test Certificate</option><option>Photo</option><option>NCR - Non Conformance Report</option><option>Snag List</option><option>As-Built Drawing</option><option>O&M Manual</option><option>Other</option></select></div>
+        <div class="field"><label>Submitted By</label><select id="dc-by"><option>Drawing Team</option><option>Estimation</option><option>Procurement</option><option>Finance</option><option>Admin</option><option>Site Supervisor</option><option>Manager</option></select></div>
+        <div class="field"><label>Date</label><input id="dc-date" type="date"></div>
+        <div class="field"><label>Status</label><select id="dc-status"><option>Submitted</option><option>Approved</option><option>Approved with Comments</option><option>Rejected</option><option>Under Review</option></select></div>
+        <div class="field form-full"><label>Notes</label><textarea id="dc-notes"></textarea></div>
+        <div class="field form-full"><label>Attach File (max 200MB)</label>
+          <input type="file" id="dc-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px">
+          <span style="font-size:10px;color:var(--muted)">Optional file attachment</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addDocument')">Cancel</button><button class="btn btn-primary" onclick="addDocument()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addLog">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">DAILY LOG ENTRY</div><button class="close-btn" onclick="closeModal('addLog')">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Date</label><input id="lg-date" type="date"></div>
+        <div class="field"><label>Weather</label><select id="lg-weather"><option>Sunny</option><option>Cloudy</option><option>Windy</option><option>Rainy</option><option>Stopped - Weather</option></select></div>
+        <div class="field"><label>Workers on Site</label><input id="lg-workers" type="number" value="0"></div>
+        <div class="field"><label>Progress % Today</label><input id="lg-prog" type="number" min="0" max="100" value="0"></div>
+        <div class="field form-full"><label>Work Done Today</label><textarea id="lg-work"></textarea></div>
+        <div class="field form-full"><label>Issues / Problems</label><textarea id="lg-issues"></textarea></div>
+        <div class="field form-full"><label>Instructions Given</label><textarea id="lg-instructions"></textarea></div>
+        <div class="field form-full"><label>Attach Photo / Report (max 200MB)</label>
+          <input type="file" id="lg-file" multiple style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px;color:var(--text);font-size:11px" multiple accept="image/*,.pdf">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('addLog')">Cancel</button><button class="btn btn-primary" onclick="addLog()">Save Log</button></div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+// ============================================================
+// CONFIG — YOUR CLIENT ID IS ALREADY SET
+// ============================================================
+const GOOGLE_CLIENT_ID = '741609954421-nin44kc4ct0cskhpgd64rjtrkcc8v34e.apps.googleusercontent.com';
+const DRIVE_FILE_NAME = 'facadeops_data_v2.json';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
+const DRIVE_FOLDER_NAME = 'FacadeOps Files';
+let driveFolderId = null; // ID of the FacadeOps Files folder in user's Drive
+
+let accessToken = null;
+let driveFileId = null;
+let driveFolderId = null;
+let syncTimeout = null;
+let isDemoMode = false;
+
+// ============================================================
+// AUTH
+// ============================================================
+function handleGoogleSignIn() {
+  const statusEl = document.getElementById('authStatus');
+  statusEl.textContent = 'Loading Google services...';
+
+  function trySignIn() {
+    if (!window.google || !window.google.accounts) {
+      setTimeout(trySignIn, 500);
+      return;
+    }
+    statusEl.textContent = 'Opening Google sign-in...';
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp) => {
+        if (resp.error) {
+          statusEl.textContent = 'Sign-in failed: ' + resp.error + '. Try "Continue without Google" below.';
+          return;
+        }
+        accessToken = resp.access_token;
+        statusEl.textContent = 'Signed in! Loading your data...';
+        await initAfterAuth();
+      }
+    });
+    client.requestAccessToken({ prompt: 'consent' });
+  }
+  trySignIn();
+}
+
+async function initAfterAuth() {
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + accessToken } });
+    const u = await r.json();
+    document.getElementById('userInfo').textContent = u.email || u.name || 'Signed in';
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'flex';
+    // IMPORTANT: Load local first so Drive merge can compare counts
+    loadFromLocalStorage();
+    setSyncStatus('syncing', 'Syncing with Google Drive...');
+    await loadFromDrive();
+    await ensureDriveFolder();
+    navigate('dashboard');
+  } catch(e) {
+    document.getElementById('authStatus').textContent = 'Error: ' + e.message;
+  }
+}
+
+function startDemoMode() {
+  isDemoMode = true;
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+  document.getElementById('userInfo').textContent = 'Local mode (no Google sync)';
+  setSyncStatus('error', 'Demo Mode - data saved locally only');
+  loadFromLocalStorage(); // Load local data immediately on startup
+  navigate('dashboard');
+}
+
+function handleSignOut() {
+  if (!confirm('Sign out?')) return;
+  if (window.google && window.google.accounts && accessToken) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null; driveFileId = null;
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+// ============================================================
+// DRIVE SYNC
+// ============================================================
+function setSyncStatus(state, msg) {
+  const b = document.getElementById('syncBar');
+  b.className = state; b.textContent = msg;
+}
+
+async function loadFromDrive() {
+  // SAFE LOAD: if Drive fails, keep whatever db is in memory (loaded from localStorage before this call)
+  // NEVER overwrite good data with empty/error data
+  try {
+    const r = await fetch(
+      'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name="' + DRIVE_FILE_NAME + '"&fields=files(id,name,size,modifiedTime)',
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if (!r.ok) throw new Error('Drive list failed: ' + r.status);
+    const list = await r.json();
+    if (list.files && list.files.length > 0) {
+      driveFileId = list.files[0].id;
+      const fr = await fetch(
+        'https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media',
+        { headers: { Authorization: 'Bearer ' + accessToken } }
+      );
+      if (!fr.ok) throw new Error('Drive read failed: ' + fr.status);
+      const data = await fr.json();
+      if (data && data.projects && Array.isArray(data.projects)) {
+        // Only update if Drive has MORE data than local (prevents overwrite with stale data)
+        const driveCount = data.projects.length;
+        const localCount = db.projects ? db.projects.length : 0;
+        if (driveCount >= localCount) {
+          db = data;
+          ensureDBFields();
+          saveToAllLocal(); // Mirror Drive data to local immediately
+          setSyncStatus('synced', 'Synced from Google Drive — ' + db.projects.length + ' projects — ' + new Date().toLocaleTimeString());
+        } else {
+          // Local has MORE data — push local up to Drive
+          setSyncStatus('syncing', 'Local has more data — uploading to Drive...');
+          await saveToDrive();
+        }
+      } else {
+        setSyncStatus('synced', 'Connected — no data on Drive yet. Creating on first save.');
+      }
+    } else {
+      setSyncStatus('synced', 'Connected — first use. Data will save to Drive automatically.');
+    }
+  } catch(e) {
+    setSyncStatus('error', 'Drive load issue (' + e.message + ') — using local backup. Data is safe.');
+    // DO NOT overwrite db — keep what was loaded from localStorage
+  }
+}
+
+async function saveToDrive() {
+  if (isDemoMode || !accessToken) { saveToLocalStorage(); return; }
+  setSyncStatus('syncing', 'Saving to Google Drive...');
+  try {
+    const content = JSON.stringify(db);
+    if (driveFileId) {
+      await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media',
+        { method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: content });
+    } else {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: DRIVE_FILE_NAME, parents: ['appDataFolder'] })], { type: 'application/json' }));
+      form.append('file', new Blob([content], { type: 'application/json' }));
+      const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+        { method: 'POST', headers: { Authorization: 'Bearer ' + accessToken }, body: form });
+      const result = await r.json();
+      driveFileId = result.id;
+    }
+    setSyncStatus('synced', 'Saved to Google Drive - ' + new Date().toLocaleTimeString());
+    saveToLocalStorage();
+  } catch(e) {
+    setSyncStatus('error', 'Save failed - saved locally');
+    saveToLocalStorage();
+  }
+}
+
+function saveDB() {
+  saveToAllLocal(); // IMMEDIATELY save to local — never lose data
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(saveToDrive, 3000); // 3s debounce for Drive
+}
+function syncNow() { saveToDrive(); }
+
+function saveToAllLocal() {
+  // Write to TWO keys so one corruption can't wipe everything
+  try {
+    const s = JSON.stringify(db);
+    localStorage.setItem('facadeops_v3_primary', s);
+    localStorage.setItem('facadeops_v3_backup', s);
+    // Also keep old key for compatibility
+    localStorage.setItem('facadeops_v2', s);
+  } catch(e) {
+    console.warn('localStorage save failed:', e);
+  }
+}
+// Keep old name as alias
+function saveToLocalStorage() { saveToAllLocal(); }
+
+function loadFromLocalStorage() {
+  // Try primary first, then backup, then old key
+  const keys = ['facadeops_v3_primary', 'facadeops_v3_backup', 'facadeops_v2'];
+  let loaded = false;
+  for (const key of keys) {
+    try {
+      const s = localStorage.getItem(key);
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed && parsed.projects && Array.isArray(parsed.projects) && parsed.projects.length >= (db.projects||[]).length) {
+          db = parsed;
+          loaded = true;
+          console.log('Loaded from', key, ':', db.projects.length, 'projects');
+          break;
+        }
+      }
+    } catch(e) { console.warn('Load from', key, 'failed:', e); }
+  }
+  ensureDBFields();
+}
+
+// ============================================================
+// DATA STORE
+// ============================================================
+let db = { projects:[], tasks:[], materials:[], batches:[], certs:[], mir:[], issues:[], tools:[], labor:[], finance:[], documents:[], logs:[], revisions:[], team:[], activity:[] };
+
+function ensureDBFields() {
+  const fields = ['projects','tasks','materials','batches','certs','mir','issues','tools','labor','finance','documents','logs','revisions','team','activity'];
+  fields.forEach(f => { if (!db[f]) db[f] = []; });
+}
+
+const PROJECT_STAGES = ['Enquiry','Estimation','Tender Submitted','Contract Signed','Drawing','Material Approval','Fabrication','Site Installation','Snagging','Handover'];
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2,5); }
+function inr(n) { return 'Rs.' + Number(n||0).toLocaleString('en-IN'); }
+function v(id) { const e = document.getElementById(id); return e ? e.value : ''; }
+function clearF(ids) { ids.forEach(id => { const e = document.getElementById(id); if(e) e.value=''; }); }
+
+// Date display — stored as YYYY-MM-DD (HTML date input standard), displayed as DD-MM-YYYY
+function fmtDate(d) {
+  if (!d) return '-';
+  // Handle ISO datetime strings (e.g. from Google Drive)
+  if (d.includes('T')) d = d.split('T')[0];
+  // If already in YYYY-MM-DD format, convert to DD-MM-YYYY
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [y,m,dy] = d.split('-');
+    return dy + '-' + m + '-' + y;
+  }
+  return d; // Return as-is if unknown format
+}
+
+function logActivity(msg) {
+  db.activity.unshift({ msg, time: new Date().toLocaleString() });
+  if (db.activity.length > 50) db.activity.pop();
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+let currentView = 'dashboard';
+let currentProject = null;
+
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById('view-' + view);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + view + "'")) n.classList.add('active');
+  });
+  currentView = view;
+  const titles = { dashboard:'DASHBOARD', projects:'PROJECTS', tasks:'TASKS', issues:'ISSUES', materials:'MATERIALS', tools:'TOOLS', labor:'LABOR', finance:'FINANCE', documents:'DOCUMENTS', reports:'REPORTS', team:'TEAM & WHATSAPP', files:'FILES MANAGER', reports:'REPORTS' };
+  document.getElementById('pageTitle').textContent = titles[view] || view.toUpperCase();
+  updateTopbarActions(view);
+  renderView(view);
+}
+
+function updateTopbarActions(view) {
+  const map = {
+    projects: "<button class='btn btn-primary' onclick=\"openNewProjectModal()\">+ New Project</button>",
+    tasks: "<button class='btn btn-primary' onclick=\"openModal('addTask')\">+ Add Task</button>",
+    issues: "<button class='btn btn-primary' onclick=\"openModal('addIssue')\">+ Raise Issue</button>",
+    materials: "<button class='btn btn-primary' onclick=\"openModal('addMaterial')\">+ Add Material</button>",
+    tools: "<button class='btn btn-primary' onclick=\"openModal('addTool')\">+ Add Tool</button>",
+    labor: "<button class='btn btn-primary' onclick=\"openModal('addLabor')\">+ Add Labor</button>",
+    finance: "<button class='btn btn-primary' onclick=\"openModal('addFinance')\">+ Add Entry</button>",
+    documents: "<button class='btn btn-primary' onclick=\"openModal('addDocument')\">+ Add Document</button>",
+  };
+  document.getElementById('topbarActions').innerHTML = (map[view]||'') + "<button class='btn btn-outline btn-sm' onclick='syncNow()'>Sync</button>";
+}
+
+function renderView(view) {
+  const map = { dashboard:renderDashboard, projects:renderProjects, tasks:renderTasks, issues:renderIssuesView, materials:renderMaterialsView, tools:renderToolsView, labor:renderLaborView, finance:renderFinanceView, documents:renderDocumentsView, reports:renderReports, team:renderTeamView, files:()=>renderFileManager(), reports:()=>{renderReports();populateReportSelects();} };
+  if (map[view]) map[view]();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const tot = db.projects.length;
+  const act = db.projects.filter(p => p.stage !== 'Handover').length;
+  const ovd = db.tasks.filter(t => t.status !== 'Done' && t.due && new Date(t.due) < new Date()).length;
+  const ms = db.materials.filter(m => m.procured < m.qty).length;
+  const openIssues = db.issues.filter(i => i.status !== 'Resolved' && i.status !== 'Closed').length;
+
+  document.getElementById('dashStats').innerHTML =
+    sc('Total Projects', tot, '') + sc('Active', act, 'var(--accent3)') +
+    sc('Overdue Tasks', ovd, 'var(--danger)') + sc('Mat. Shortfalls', ms, 'var(--warn)') +
+    sc('Open Issues', openIssues, openIssues > 0 ? 'var(--danger)' : 'var(--accent3)');
+
+  let alerts = '';
+  db.tasks.filter(t => t.status!=='Done' && t.due && new Date(t.due)<new Date()).slice(0,4).forEach(t => {
+    const p = db.projects.find(pr => pr.id===t.projectId);
+    alerts += `<div class="alert alert-danger">Overdue task: <b>${t.task}</b>${p?' - '+p.name:''}</div>`;
+  });
+  db.issues.filter(i => i.severity==='Critical' && i.status!=='Resolved').slice(0,3).forEach(i => {
+    alerts += `<div class="alert alert-danger">Critical Issue: <b>${i.title}</b></div>`;
+  });
+  db.materials.filter(m => m.procured < m.qty && m.needBy && new Date(m.needBy) <= new Date()).slice(0,3).forEach(m => {
+    alerts += `<div class="alert alert-warn">Material needed: <b>${m.name}</b> - ${m.qty-m.procured} ${m.unit} short</div>`;
+  });
+  db.mir.filter(m => m.sigStatus === 'Pending Signature').slice(0,3).forEach(m => {
+    alerts += `<div class="alert alert-info">MIR pending client signature: <b>${m.title}</b></div>`;
+  });
+  document.getElementById('dashAlerts').innerHTML = alerts || '<div class="alert alert-success">No urgent alerts! All good.</div>';
+
+  document.getElementById('dashActivity').innerHTML = db.activity.slice(0,10).map(a =>
+    `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:11px"><span>${a.msg}</span><br><span style="color:var(--muted)">${a.time}</span></div>`
+  ).join('') || '<span style="color:var(--muted)">No activity yet.</span>';
+
+  document.getElementById('dashProjectRows').innerHTML = db.projects.map(p => {
+    const prog = stageProgress(p.stage);
+    const ovd = p.end && new Date(p.end) < new Date() && p.stage !== 'Handover';
+    return `<tr>
+      <td><b style="cursor:pointer;color:var(--accent)" onclick="openProjectDetail('${p.id}')">${p.name}</b><br><span style="font-size:10px;color:var(--muted)">${p.type||''}</span></td>
+      <td style="font-size:11px">${p.client||'-'}</td>
+      <td>${stageBadge(p.stage)}</td>
+      <td><div class="progress-bar" style="width:80px"><div class="progress-fill" style="width:${prog}%;background:var(--accent3)"></div></div><span style="font-size:10px;color:var(--muted)"> ${prog}%</span></td>
+      <td style="font-size:11px;color:${ovd?'var(--danger)':''}">${fmtDate(p.end)}</td>
+      <td>${ovd?'<span class="badge badge-red">OVERDUE</span>':'<span class="badge badge-green">ON TRACK</span>'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No projects yet. Click "+ New Project" to start.</td></tr>';
+
+  renderSidebar();
+}
+
+function sc(label, val, color) {
+  return `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="${color?'color:'+color:''}">${val}</div></div>`;
+}
+
+function stageProgress(stage) {
+  const idx = PROJECT_STAGES.indexOf(stage);
+  return idx < 0 ? 0 : Math.round(((idx+1)/PROJECT_STAGES.length)*100);
+}
+
+function stageBadge(stage) {
+  const c = { 'Handover':'badge-green','Site Installation':'badge-blue','Fabrication':'badge-blue','Contract Signed':'badge-yellow','Drawing':'badge-orange','Enquiry':'badge-gray' };
+  return `<span class="badge ${c[stage]||'badge-gray'}">${stage}</span>`;
+}
+
+function renderSidebar() {
+  document.getElementById('sidebarProjects').innerHTML = db.projects.slice(0,8).map(p =>
+    `<div class="project-chip ${currentProject===p.id?'active':''}" onclick="openProjectDetail('${p.id}')">
+      <div class="pname">${p.name}</div><div class="pstage">${p.stage}</div>
+      <div class="progress-mini"><div class="progress-mini-fill" style="width:${stageProgress(p.stage)}%"></div></div>
+    </div>`
+  ).join('') || '<div style="font-size:11px;color:var(--muted)">No projects yet</div>';
+}
+
+// ============================================================
+// PROJECTS
+// ============================================================
+function renderProjects() {
+  document.getElementById('projectDetailView').style.display = 'none';
+  document.getElementById('projectListView').style.display = 'block';
+  document.getElementById('projectRows').innerHTML = db.projects.map(p =>
+    `<tr>
+      <td><b style="color:var(--accent);cursor:pointer" onclick="openProjectDetail('${p.id}')">${p.name}</b><br><span style="font-size:10px;color:var(--muted)">${p.type||''} | ${p.location||''}</span></td>
+      <td style="font-size:11px">${p.client||'-'}</td>
+      <td style="font-size:11px;font-family:'DM Mono',monospace">${p.value?inr(p.value):'-'}</td>
+      <td>${stageBadge(p.stage)}</td>
+      <td><div class="progress-bar" style="width:70px"><div class="progress-fill" style="width:${stageProgress(p.stage)}%;background:var(--accent3)"></div></div></td>
+      <td><button class="btn btn-outline btn-sm" onclick="openProjectDetail('${p.id}')">Open</button> <button class="btn btn-blue btn-sm" onclick="editProject('${p.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Del</button></td>
+    </tr>`
+  ).join('') || '<tr><td colspan="6"><div class="empty"><div class="empty-icon">🏗️</div>No projects yet.</div></td></tr>';
+}
+
+function showProjectList() { currentProject = null; renderProjects(); document.getElementById('pageTitle').textContent = 'PROJECTS'; updateTopbarActions('projects'); }
+
+const STAGE_CHECKLISTS = {
+  'Enquiry':['Receive enquiry from client','Understand scope of work','Visit site if needed','Log enquiry in system'],
+  'Estimation':['Prepare BOQ from drawings','Calculate material quantities','Get material quotations','Calculate labor costs','Prepare final cost estimate','Get management approval'],
+  'Tender Submitted':['Prepare tender document','Include technical specs & method statement','Submit tender to client','Follow up with client'],
+  'Contract Signed':['Review contract terms','Get management sign-off','Issue LOI/Work Order','Open project in system','Brief the team'],
+  'Drawing':['Receive architectural drawings','Prepare shop drawings','Submit drawings for approval','Respond to consultant comments','Get drawings approved'],
+  'Material Approval':['Prepare material submittals','Submit samples to consultant','Get material approval','Place material orders'],
+  'Fabrication':['Issue fabrication drawings to workshop','Monitor fabrication progress','Quality check fabricated items','Arrange delivery batches to site'],
+  'Site Installation':['Prepare method statement','Submit RFI for installation','Mobilize labor and equipment','Install as per drawings','Daily progress reporting'],
+  'Snagging':['Walk site with client/consultant','List all snagging items','Rectify all snag items','Get re-inspection approval','Document completed snags'],
+  'Handover':['Prepare as-built drawings','Prepare O&M manual','Clear all outstanding invoices','Get completion certificate','Handover to client']
+};
+
+function openProjectDetail(pid) {
+  currentProject = pid;
+  navigate('projects');
+  const p = db.projects.find(pr => pr.id === pid);
+  if (!p) return;
+  document.getElementById('projectListView').style.display = 'none';
+  document.getElementById('projectDetailView').style.display = 'block';
+  document.getElementById('detailProjectName').textContent = p.name;
+  document.getElementById('pageTitle').textContent = p.name.toUpperCase();
+
+  const curIdx = PROJECT_STAGES.indexOf(p.stage);
+  document.getElementById('stageTimeline').innerHTML = PROJECT_STAGES.map((s,i) =>
+    `<div class="stage-step">
+      <div class="step-circle ${i<curIdx?'done':i===curIdx?'active':''}">${i<curIdx?'V':i+1}</div>
+      <div class="step-label ${i===curIdx?'active':''}">${s}</div>
+    </div>`
+  ).join('');
+
+  const nextIdx = curIdx + 1;
+  document.getElementById('stageButtons').innerHTML =
+    `<span style="font-size:11px;color:var(--muted);align-self:center">Advance:</span>` +
+    (nextIdx < PROJECT_STAGES.length ? `<button class="btn btn-success btn-sm" onclick="advanceStage('${pid}')">Move to ${PROJECT_STAGES[nextIdx]}</button>` : '<span class="badge badge-green">PROJECT COMPLETE</span>') +
+    (curIdx > 0 ? `<button class="btn btn-outline btn-sm" onclick="regressStage('${pid}')">Back to ${PROJECT_STAGES[curIdx-1]}</button>` : '');
+
+  renderProjectTabs(p);
+  renderSidebar();
+}
+
+function renderProjectTabs(p) {
+  renderPtabOverview(p);
+  renderPtabTasks(p);
+  renderPtabRevisions(p);
+  renderPtabMaterials(p);
+  renderPtabDelivery(p);
+  renderPtabMIR(p);
+  renderPtabIssues(p);
+  renderPtabTools(p);
+  renderPtabLabor(p);
+  renderPtabFinance(p);
+  renderPtabDocs(p);
+  renderPtabLog(p);
+}
+
+function renderPtabOverview(p) {
+  if (!p.checklists) p.checklists = {};
+  if (!p.checklists[p.stage]) p.checklists[p.stage] = {};
+  const items = STAGE_CHECKLISTS[p.stage] || [];
+  document.getElementById('ptab-overview').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="card"><div class="card-title">Project Info</div>
+        <table style="width:100%;font-size:13px">
+          ${ri('Client',p.client)}${ri('Type',p.type)}${ri('Location',p.location)}
+          ${ri('Consultant',p.consultant)}${ri('Main Contractor',p.mc)}
+          ${ri('Start Date',fmtDate(p.start))}${ri('Deadline',fmtDate(p.end))}
+          ${ri('Stage',p.stage)}
+        </table>
+        ${p.desc?`<div style="margin-top:10px;font-size:13px;color:var(--muted)">${p.desc}</div>`:''}
+      </div>
+      <div class="card"><div class="card-title">Stage Checklist - ${p.stage}</div>
+        <div id="stageChecklist">
+          ${items.map((item,i) => {
+            const done = p.checklists[p.stage][i];
+            return `<div class="task-row"><div class="task-check ${done?'done':''}" onclick="toggleChecklist('${p.id}','${p.stage}',${i})">${done?'V':''}</div><div class="task-text ${done?'done':''}">${item}</div></div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+    ${renderValueBreakdown(p)}`;
+}
+
+function ri(l,v) { return `<tr><td style="color:var(--muted);padding:4px 0;width:130px">${l}</td><td style="padding:4px 0">${v||'-'}</td></tr>`; }
+
+function toggleChecklist(pid,stage,idx) {
+  const p = db.projects.find(pr=>pr.id===pid);
+  if (!p.checklists) p.checklists={};
+  if (!p.checklists[stage]) p.checklists[stage]={};
+  p.checklists[stage][idx] = !p.checklists[stage][idx];
+  saveDB(); renderPtabOverview(p);
+}
+
+function renderPtabTasks(p) {
+  const tasks = db.tasks.filter(t=>t.projectId===p.id);
+  document.getElementById('ptab-tasks').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addTask','${p.id}')">+ Add Task</button></div>
+    <div class="card">${tasks.map(t =>
+      `<div class="task-row">
+        <div class="task-check ${t.status==='Done'?'done':''}" onclick="toggleTask('${t.id}')">${t.status==='Done'?'V':''}</div>
+        <div class="task-text ${t.status==='Done'?'done':''}"><b>${t.task}</b> <span style="font-size:10px;color:var(--muted)">- ${t.assign||''} | Due: ${fmtDate(t.due)}</span>${t.notes?`<div style="font-size:10px;color:var(--muted)">${t.notes}</div>`:''}</div>
+        <span class="badge ${t.priority==='High'?'badge-red':t.priority==='Medium'?'badge-yellow':'badge-gray'}">${t.priority||''}</span>
+        <button class="btn btn-blue btn-sm" onclick="editTask('${t.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">x</button>
+      </div>`
+    ).join('')||'<div class="empty">No tasks yet.</div>'}</div>`;
+}
+
+function renderPtabRevisions(p) {
+  const revs = db.revisions.filter(r=>r.projectId===p.id);
+  document.getElementById('ptab-revisions').innerHTML =
+    `<div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary btn-sm" onclick="openRevisionModal('${p.id}')">+ Add Revision / Submission</button>
+      <span style="font-size:11px;color:var(--muted)">Track Drawing Submissions, Quotation Revisions (R_0, R_1, R_2...)</span>
+    </div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Title</th><th>Type</th><th>Rev. No.</th><th>Submitted To</th><th>By</th><th>Date</th><th>Status</th><th>File</th></tr></thead>
+      <tbody>${revs.length ? revs.map(r =>
+        `<tr>
+          <td><b>${r.title}</b>${r.notes?`<div style="font-size:10px;color:var(--muted)">${r.notes}</div>`:''}</td>
+          <td><span class="badge badge-blue">${r.type}</span></td>
+          <td><span class="rev-badge">${r.rev}</span></td>
+          <td style="font-size:11px">${r.to||'-'}</td>
+          <td style="font-size:11px">${r.by||'-'}</td>
+          <td style="font-size:11px">${fmtDate(r.date)}</td>
+          <td>${revStatusBadge(r.status)}</td>
+          <td>${renderFileList(r.files||[],r.id)}</td>
+        </tr>`
+      ).join('') : '<tr><td colspan="8"><div class="empty">No revisions yet. Add Drawing Submissions or Quotation revisions here.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function revStatusBadge(s) {
+  const c = { 'Approved':'badge-green','Submitted':'badge-blue','Under Review':'badge-yellow','Rejected – Revise & Resubmit':'badge-red','Approved with Comments':'badge-orange' };
+  return `<span class="badge ${c[s]||'badge-gray'}">${s||'-'}</span>`;
+}
+
+function renderPtabMaterials(p) {
+  const mats = db.materials.filter(m=>m.projectId===p.id);
+  document.getElementById('ptab-materials').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addMaterial','${p.id}')">+ Add Material</button></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Material</th><th>Required</th><th>Ordered</th><th>Delivered</th><th>Remaining</th><th>Need By</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${mats.map(m => {
+        const totalDel = db.batches.filter(b=>b.materialId===m.id).reduce((s,b)=>s+Number(b.qty),0);
+        const rem = m.qty - m.procured;
+        const sc = rem>0?'badge-red':totalDel<m.qty?'badge-yellow':'badge-green';
+        const st = rem>0?'Procurement Short':totalDel<m.qty?'Partially Delivered':'All Delivered';
+        return `<tr>
+          <td><b>${m.name}</b><br><span style="font-size:10px;color:var(--muted)">${m.supplier||''} ${m.rate?'| Rs.'+m.rate+'/'+m.unit:''}</span></td>
+          <td>${m.qty} ${m.unit}</td>
+          <td style="color:${m.procured>=m.qty?'var(--accent3)':'var(--warn)'}">${m.procured} ${m.unit}</td>
+          <td>${totalDel} ${m.unit}</td>
+          <td style="color:${rem>0?'var(--danger)':'var(--accent3)'};font-weight:700">${rem} ${m.unit}</td>
+          <td style="font-size:11px">${fmtDate(m.needBy)}</td>
+          <td><span class="badge ${sc}">${st}</span></td>
+          <td>
+            <button class="btn btn-blue btn-sm" onclick="openBatchModal('${m.id}')">+Batch</button>
+            <button class="btn btn-outline btn-sm" onclick="editMaterial('${m.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteMaterial('${m.id}')">x</button>
+          </td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="8"><div class="empty">No materials tracked yet.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabDelivery(p) {
+  const mats = db.materials.filter(m=>m.projectId===p.id);
+  const certs = db.certs.filter(c=>c.projectId===p.id);
+  let batchHtml = '';
+  mats.forEach(m => {
+    const batches = db.batches.filter(b=>b.materialId===m.id);
+    if (batches.length > 0) {
+      batchHtml += `<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px">${m.name} (${m.qty} ${m.unit} total)</div>
+        <table class="tbl"><thead><tr><th>Batch</th><th>Qty</th><th>Date</th><th>Vehicle/Challan</th><th>Received By</th><th>Condition</th><th>File</th></tr></thead>
+        <tbody>${batches.map(b=>`<tr>
+          <td>${b.no||'-'}</td><td><b>${b.qty} ${m.unit}</b></td>
+          <td style="font-size:11px">${fmtDate(b.date)}</td><td style="font-size:11px">${b.vehicle||'-'}</td>
+          <td style="font-size:11px">${b.received||'-'}</td>
+          <td><span class="badge ${b.condition==='Good'?'badge-green':'badge-red'}">${b.condition||'-'}</span></td>
+          <td>${renderFileList(b.files||[],b.id)}</td>
+        </tr>`).join('')}</tbody></table>
+      </div>`;
+    }
+  });
+
+  document.getElementById('ptab-delivery').innerHTML =
+    `<div class="card">
+      <div class="card-title">Batch Delivery Tracker</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Materials are delivered in batches. Track each delivery separately. Click "+Batch" on the Materials tab to add a delivery.</p>
+      ${batchHtml||'<div class="empty">No delivery batches recorded yet. Go to Materials tab and click "+Batch".</div>'}
+    </div>
+    <div class="card">
+      <div class="card-title">Test Certificates</div>
+      <div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openCertModal('${p.id}')">+ Add Test Certificate</button></div>
+      <table class="tbl"><thead><tr><th>Certificate</th><th>Material</th><th>Cert. No.</th><th>Issued By</th><th>Date</th><th>Status</th><th>File</th></tr></thead>
+      <tbody>${certs.map(c=>`<tr>
+        <td><b>${c.name}</b></td><td style="font-size:11px">${c.material||'-'}</td>
+        <td style="font-size:11px;font-family:'DM Mono',monospace">${c.no||'-'}</td>
+        <td style="font-size:11px">${c.issuer||'-'}</td>
+        <td style="font-size:11px">${fmtDate(c.date)}</td>
+        <td><span class="badge ${c.status==='Approved'?'badge-green':c.status==='Received'?'badge-blue':'badge-yellow'}">${c.status}</span></td>
+        <td>${renderFileList(c.files||[],c.id)}</td>
+      </tr>`).join('')||'<tr><td colspan="7"><div class="empty">No test certificates added yet.</div></td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderPtabMIR(p) {
+  const mirs = db.mir.filter(m=>m.projectId===p.id);
+  document.getElementById('ptab-mir').innerHTML =
+    `<div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary btn-sm" onclick="openMIRModal('${p.id}')">+ Create MIR</button>
+      <span style="font-size:11px;color:var(--muted)">Material Inspection Reports require client signature</span>
+    </div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>MIR No.</th><th>Title</th><th>Material</th><th>Inspector</th><th>Date</th><th>Result</th><th>Client Signature</th><th>File</th></tr></thead>
+      <tbody>${mirs.map(m=>`<tr>
+        <td><span class="rev-badge">${m.no||'-'}</span></td>
+        <td><b>${m.title}</b><br><span style="font-size:10px;color:var(--muted)">${m.clientRep||''}</span></td>
+        <td style="font-size:11px">${m.material||'-'}</td>
+        <td style="font-size:11px">${m.by||'-'}</td>
+        <td style="font-size:11px">${fmtDate(m.date)}</td>
+        <td><span class="badge ${m.result==='Pass'?'badge-green':m.result==='Fail – Rejected'?'badge-red':'badge-yellow'}">${m.result}</span></td>
+        <td><span class="badge ${m.sigStatus==='Signed – Approved'?'badge-green':m.sigStatus==='Pending Signature'?'badge-yellow':'badge-red'}">${m.sigStatus}</span>
+          ${m.sigStatus==='Pending Signature'?`<button class="btn btn-success btn-sm" style="margin-left:4px" onclick="markMIRSigned('${m.id}')">Mark Signed</button>`:''}
+        </td>
+        <td>${renderFileList(m.files||[],m.id)}</td>
+      </tr>`).join('')||'<tr><td colspan="8"><div class="empty">No MIRs created yet.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabIssues(p) {
+  const issues = db.issues.filter(i=>i.projectId===p.id);
+  document.getElementById('ptab-issues').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addIssue','${p.id}')">+ Raise Issue</button></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Issue</th><th>Severity</th><th>Category</th><th>Assigned</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${issues.map(i=>`<tr>
+        <td><b>${i.title}</b>${i.desc?`<div style="font-size:10px;color:var(--muted)">${i.desc.substring(0,60)}...</div>`:''}</td>
+        <td><span class="badge ${i.severity==='Critical'?'badge-red':i.severity==='High'?'badge-orange':i.severity==='Medium'?'badge-yellow':'badge-gray'}">${i.severity}</span></td>
+        <td style="font-size:11px">${i.cat||'-'}</td><td style="font-size:11px">${i.assign||'-'}</td>
+        <td style="font-size:11px">${fmtDate(i.date)}</td>
+        <td><span class="badge ${i.status==='Resolved'?'badge-green':i.status==='In Progress'?'badge-blue':'badge-red'}">${i.status||'Open'}</span></td>
+        <td>
+          <button class="btn btn-blue btn-sm" onclick="editIssue('${i.id}')">Edit</button>
+          ${i.status!=='Resolved'?`<button class="btn btn-success btn-sm" onclick="resolveIssue('${i.id}')">Resolve</button>`:''}
+          <button class="btn btn-danger btn-sm" onclick="deleteIssue('${i.id}')">x</button>
+        </td>
+      </tr>`).join('')||'<tr><td colspan="7"><div class="empty">No issues raised.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabTools(p) {
+  const tools = db.tools.filter(t=>t.projectId===p.id);
+  document.getElementById('ptab-tools').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addTool','${p.id}')">+ Add Tool</button></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Tool</th><th>Req</th><th>Mob.</th><th>Shortfall</th><th>Need By</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${tools.map(t=>{const s=t.qty-t.avail;return`<tr>
+        <td><b>${t.name}</b></td><td>${t.qty}</td><td>${t.avail}</td>
+        <td style="color:${s>0?'var(--danger)':'var(--accent3)'};font-weight:700">${s}</td>
+        <td style="font-size:11px">${fmtDate(t.needBy)}</td>
+        <td><span class="badge ${s>0?'badge-red':'badge-green'}">${s>0?'Short':'Ready'}</span></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteTool('${t.id}')">x</button></td>
+      </tr>`}).join('')||'<tr><td colspan="7"><div class="empty">No tools tracked.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabLabor(p) {
+  const labors = db.labor.filter(l=>l.projectId===p.id);
+  document.getElementById('ptab-labor').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addLabor','${p.id}')">+ Add Labor</button></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Trade</th><th>Req</th><th>Dep.</th><th>Shortfall</th><th>Mob. Date</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${labors.map(l=>{const s=l.req-l.dep;return`<tr>
+        <td><b>${l.trade}</b></td><td>${l.req}</td><td>${l.dep}</td>
+        <td style="color:${s>0?'var(--danger)':'var(--accent3)'};font-weight:700">${s}</td>
+        <td style="font-size:11px">${fmtDate(l.mobDate)}</td>
+        <td><span class="badge ${s>0?'badge-red':'badge-green'}">${s>0?'Short':'OK'}</span></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteLabor('${l.id}')">x</button></td>
+      </tr>`}).join('')||'<tr><td colspan="7"><div class="empty">No labor tracked.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabFinance(p) {
+  const entries = db.finance.filter(f=>f.projectId===p.id);
+  const income = entries.filter(f=>['Invoice to Client','Payment from Client'].includes(f.type)).reduce((s,f)=>s+Number(f.amount),0);
+  const expense = entries.filter(f=>!['Invoice to Client','Payment from Client'].includes(f.type)).reduce((s,f)=>s+Number(f.amount),0);
+  document.getElementById('ptab-finance').innerHTML =
+    `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="stat-card"><div class="stat-label">Contract Value</div><div style="font-size:16px;font-weight:700;color:var(--accent)">${inr(p.value)}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${p.values&&p.values.revised?'Incl. variations':p.values&&p.values.awarded?'Awarded value':'Estimated'}</div></div>
+      <div class="stat-card"><div class="stat-label">Income</div><div style="font-size:16px;font-weight:700;color:var(--accent3)">${inr(income)}</div></div>
+      <div class="stat-card"><div class="stat-label">Expenses</div><div style="font-size:16px;font-weight:700;color:var(--danger)">${inr(expense)}</div></div>
+    </div>
+    <div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addFinance','${p.id}')">+ Add Entry</button></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${entries.map(f=>`<tr>
+        <td><span class="badge badge-gray">${f.type}</span></td><td>${f.desc||'-'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px">${inr(f.amount)}</td>
+        <td style="font-size:11px">${fmtDate(f.date)}</td>
+        <td><span class="badge ${f.status==='Paid'||f.status==='Received'?'badge-green':f.status==='Overdue'?'badge-red':'badge-yellow'}">${f.status}</span></td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteFinance('${f.id}')">x</button></td>
+      </tr>`).join('')||'<tr><td colspan="6"><div class="empty">No finance entries.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabDocs(p) {
+  const docs = db.documents.filter(d=>d.projectId===p.id);
+  document.getElementById('ptab-docs').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openModalForProject('addDocument','${p.id}')">+ Add Document</button></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Name</th><th>Type</th><th>By</th><th>Date</th><th>Status</th><th>File</th></tr></thead>
+      <tbody>${docs.map(d=>`<tr>
+        <td><b>${d.name}</b></td>
+        <td><span class="badge badge-blue">${d.type}</span></td>
+        <td style="font-size:11px">${d.by||'-'}</td><td style="font-size:11px">${fmtDate(d.date)}</td>
+        <td><span class="badge ${d.status==='Approved'?'badge-green':d.status==='Rejected'?'badge-red':'badge-yellow'}">${d.status}</span></td>
+        <td>${renderFileList(d.files||[],d.id)}</td>
+      </tr>`).join('')||'<tr><td colspan="6"><div class="empty">No documents added.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderPtabLog(p) {
+  const logs = db.logs.filter(l=>l.projectId===p.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById('ptab-log').innerHTML =
+    `<div style="margin-bottom:10px"><button class="btn btn-primary btn-sm" onclick="openLogModal('${p.id}')">+ Add Daily Log</button></div>
+    ${logs.map(l=>`<div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <b>${fmtDate(l.date)}</b>
+        <div><span class="badge badge-gray">${l.weather}</span> <span class="badge badge-blue">${l.workers} workers</span></div>
+      </div>
+      ${l.work?`<div style="margin-bottom:5px;font-size:12px"><b style="font-size:10px;color:var(--muted);text-transform:uppercase">Work Done:</b> ${l.work}</div>`:''}
+      ${l.issues?`<div class="alert alert-warn" style="margin-bottom:5px">${l.issues}</div>`:''}
+      ${l.instructions?`<div style="font-size:11px;color:var(--muted)">Instructions: ${l.instructions}</div>`:''}
+      ${renderFileList(l.files||[],l.id)}
+    </div>`).join('')||'<div class="empty"><div class="empty-icon">📋</div>No daily logs yet.</div>'}`;
+}
+
+// ============================================================
+// GLOBAL VIEWS
+// ============================================================
+function renderTasks() {
+  document.getElementById('taskFilterChips').innerHTML =
+    `<div class="chip active" onclick="filterTasks(this,'all')">All</div>
+     <div class="chip" onclick="filterTasks(this,'pending')">Pending</div>
+     <div class="chip" onclick="filterTasks(this,'done')">Done</div>
+     <div class="chip" onclick="filterTasks(this,'overdue')">Overdue</div>`;
+  renderTaskTable(db.tasks);
+}
+function filterTasks(el,f) {
+  document.querySelectorAll('#taskFilterChips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  let t=db.tasks;
+  if(f==='pending') t=t.filter(x=>x.status!=='Done');
+  if(f==='done') t=t.filter(x=>x.status==='Done');
+  if(f==='overdue') t=t.filter(x=>x.status!=='Done'&&x.due&&new Date(x.due)<new Date());
+  renderTaskTable(t);
+}
+function renderTaskTable(tasks) {
+  document.getElementById('taskRows').innerHTML = tasks.map(t=>{
+    const p=db.projects.find(pr=>pr.id===t.projectId);
+    const ovd=t.status!=='Done'&&t.due&&new Date(t.due)<new Date();
+    return`<tr>
+      <td><b>${t.task}</b>${t.notes?`<div style="font-size:10px;color:var(--muted)">${t.notes}</div>`:''}</td>
+      <td style="font-size:11px">${p?p.name:'-'}</td><td style="font-size:11px">${t.assign||'-'}</td>
+      <td style="color:${ovd?'var(--danger)':''};font-size:11px">${fmtDate(t.due)}${ovd?' (OVERDUE)':''}</td>
+      <td><span class="badge ${t.priority==='High'?'badge-red':t.priority==='Medium'?'badge-yellow':'badge-gray'}">${t.priority||''}</span></td>
+      <td><span class="badge ${t.status==='Done'?'badge-green':'badge-yellow'}">${t.status||'Pending'}</span></td>
+      <td>
+        <button class="btn btn-success btn-sm" onclick="toggleTask('${t.id}')">${t.status==='Done'?'Undo':'Done'}</button>
+        <button class="btn btn-blue btn-sm" onclick="editTask('${t.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">x</button>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7"><div class="empty">No tasks found.</div></td></tr>';
+}
+
+function renderIssuesView() {
+  document.getElementById('issueRows').innerHTML = db.issues.map(i=>{
+    const p=db.projects.find(pr=>pr.id===i.projectId);
+    return`<tr>
+      <td><b>${i.title}</b></td>
+      <td style="font-size:11px">${p?p.name:'-'}</td>
+      <td><span class="badge ${i.severity==='Critical'?'badge-red':i.severity==='High'?'badge-orange':i.severity==='Medium'?'badge-yellow':'badge-gray'}">${i.severity}</span></td>
+      <td style="font-size:11px">${i.by||'-'}</td>
+      <td style="font-size:11px">${fmtDate(i.date)}</td>
+      <td><span class="badge ${i.status==='Resolved'?'badge-green':i.status==='In Progress'?'badge-blue':'badge-red'}">${i.status||'Open'}</span></td>
+      <td>
+        <button class="btn btn-blue btn-sm" onclick="editIssue('${i.id}')">Edit</button>
+        ${i.status!=='Resolved'?`<button class="btn btn-success btn-sm" onclick="resolveIssue('${i.id}')">Resolve</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="deleteIssue('${i.id}')">x</button>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7"><div class="empty"><div class="empty-icon">⚠️</div>No issues raised.</div></td></tr>';
+}
+
+function renderMaterialsView() {
+  document.getElementById('materialRows').innerHTML = db.materials.map(m=>{
+    const p=db.projects.find(pr=>pr.id===m.projectId);
+    const totalDel = db.batches.filter(b=>b.materialId===m.id).reduce((s,b)=>s+Number(b.qty),0);
+    const batchCount = db.batches.filter(b=>b.materialId===m.id).length;
+    const rem=m.qty-m.procured;
+    const sc=rem>0?'badge-red':totalDel<m.qty?'badge-yellow':'badge-green';
+    const st=rem>0?'Short':totalDel<m.qty?'Partial':'Delivered';
+    return`<tr>
+      <td><b>${m.name}</b><br><span style="font-size:10px;color:var(--muted)">${m.supplier||''}</span></td>
+      <td style="font-size:11px">${p?p.name:'-'}</td>
+      <td>${m.qty} ${m.unit}</td>
+      <td style="color:${m.procured>=m.qty?'var(--accent3)':'var(--warn)'}">${m.procured} ${m.unit}</td>
+      <td>${totalDel} ${m.unit}</td>
+      <td style="color:${rem>0?'var(--danger)':'var(--accent3)'};font-weight:700">${rem} ${m.unit}</td>
+      <td><span class="badge badge-blue">${batchCount} batches</span></td>
+      <td style="font-size:11px">${fmtDate(m.needBy)}</td>
+      <td><span class="badge ${sc}">${st}</span></td>
+      <td>
+        <button class="btn btn-blue btn-sm" onclick="openBatchModal('${m.id}')">+Batch</button>
+        <button class="btn btn-outline btn-sm" onclick="editMaterial('${m.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMaterial('${m.id}')">x</button>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="10"><div class="empty"><div class="empty-icon">📦</div>No materials tracked.</div></td></tr>';
+}
+
+function renderToolsView() {
+  document.getElementById('toolRows').innerHTML = db.tools.map(t=>{
+    const p=db.projects.find(pr=>pr.id===t.projectId);
+    const s=t.qty-t.avail;
+    return`<tr><td><b>${t.name}</b></td><td style="font-size:11px">${p?p.name:'-'}</td>
+      <td>${t.qty}</td><td>${t.avail}</td>
+      <td style="color:${s>0?'var(--danger)':'var(--accent3)'};font-weight:700">${s}</td>
+      <td style="font-size:11px">${fmtDate(t.needBy)}</td>
+      <td><span class="badge ${s>0?'badge-red':'badge-green'}">${s>0?'Short':'Ready'}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteTool('${t.id}')">x</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8"><div class="empty">No tools tracked.</div></td></tr>';
+}
+
+function renderLaborView() {
+  document.getElementById('laborRows').innerHTML = db.labor.map(l=>{
+    const p=db.projects.find(pr=>pr.id===l.projectId);
+    const s=l.req-l.dep;
+    return`<tr><td><b>${l.trade}</b></td><td style="font-size:11px">${p?p.name:'-'}</td>
+      <td>${l.req}</td><td>${l.dep}</td>
+      <td style="color:${s>0?'var(--danger)':'var(--accent3)'};font-weight:700">${s}</td>
+      <td style="font-size:11px">${fmtDate(l.mobDate)}</td>
+      <td><span class="badge ${s>0?'badge-red':'badge-green'}">${s>0?'Short':'OK'}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLabor('${l.id}')">x</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8"><div class="empty">No labor tracked.</div></td></tr>';
+}
+
+function renderFinanceView() {
+  const inc=db.finance.filter(f=>['Payment from Client','Invoice to Client'].includes(f.type)&&f.status!=='Pending').reduce((s,f)=>s+Number(f.amount),0);
+  const exp=db.finance.filter(f=>!['Invoice to Client','Payment from Client'].includes(f.type)).reduce((s,f)=>s+Number(f.amount),0);
+  const pend=db.finance.filter(f=>f.status==='Pending'||f.status==='Overdue').reduce((s,f)=>s+Number(f.amount),0);
+  document.getElementById('finStats').innerHTML =
+    sc('Total Received',inr(inc),'var(--accent3)')+sc('Total Expenses',inr(exp),'var(--danger)')+
+    sc('Pending',inr(pend),'var(--warn)')+sc('Net',inr(inc-exp),inc-exp>=0?'var(--accent3)':'var(--danger)');
+  document.getElementById('finRows').innerHTML = db.finance.map(f=>{
+    const p=db.projects.find(pr=>pr.id===f.projectId);
+    return`<tr>
+      <td style="font-size:11px">${p?p.name:'-'}</td>
+      <td><span class="badge badge-gray">${f.type}</span></td><td style="font-size:11px">${f.desc||'-'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px">${inr(f.amount)}</td>
+      <td style="font-size:11px">${fmtDate(f.date)}</td>
+      <td><span class="badge ${f.status==='Paid'||f.status==='Received'?'badge-green':f.status==='Overdue'?'badge-red':'badge-yellow'}">${f.status}</span></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="6"><div class="empty">No finance entries.</div></td></tr>';
+}
+
+function renderDocumentsView() {
+  document.getElementById('docRows').innerHTML = db.documents.map(d=>{
+    const p=db.projects.find(pr=>pr.id===d.projectId);
+    return`<tr>
+      <td><b>${d.name}</b></td><td style="font-size:11px">${p?p.name:'-'}</td>
+      <td><span class="badge badge-blue">${d.type}</span></td><td style="font-size:11px">${d.by||'-'}</td>
+      <td style="font-size:11px">${fmtDate(d.date)}</td>
+      <td><span class="badge ${d.status==='Approved'?'badge-green':d.status==='Rejected'?'badge-red':'badge-yellow'}">${d.status}</span></td>
+      <td>${renderFileList(d.files||[],d.id)}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7"><div class="empty">No documents.</div></td></tr>';
+}
+
+function renderReports() {
+  document.getElementById('reportCards').innerHTML = db.projects.map(p=>{
+    const tasks=db.tasks.filter(t=>t.projectId===p.id);
+    const done=tasks.filter(t=>t.status==='Done').length;
+    const issues=db.issues.filter(i=>i.projectId===p.id&&i.status!=='Resolved').length;
+    const matShort=db.materials.filter(m=>m.projectId===p.id&&m.procured<m.qty).length;
+    const pendMIR=db.mir.filter(m=>m.projectId===p.id&&m.sigStatus==='Pending Signature').length;
+    return`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <b style="font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px">${p.name}</b>
+        ${stageBadge(p.stage)}
+      </div>
+      <div class="progress-bar" style="margin-bottom:7px"><div class="progress-fill" style="width:${stageProgress(p.stage)}%;background:var(--accent3)"></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${p.stage} - ${stageProgress(p.stage)}% | ${p.value?inr(p.value):''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:11px">
+        <div>Tasks: ${done}/${tasks.length} done</div>
+        <div>Issues: ${issues>0?'<span style="color:var(--danger)">'+issues+' open</span>':'OK'}</div>
+        <div>Materials: ${matShort>0?'<span style="color:var(--danger)">'+matShort+' short</span>':'OK'}</div>
+        <div>MIR: ${pendMIR>0?'<span style="color:var(--warn)">'+pendMIR+' pending sig.</span>':'OK'}</div>
+      </div>
+      <div style="margin-top:10px"><button class="btn btn-outline btn-sm" onclick="openProjectDetail('${p.id}')">Open Project</button></div>
+    </div>`;
+  }).join('')||'<div class="empty" style="grid-column:1/-1">No projects yet.</div>';
+}
+
+function renderTeamView() {
+  const el = document.getElementById('teamList');
+  if (!el) return;
+  el.innerHTML = db.team.length ? `<table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>WhatsApp</th><th>Action</th></tr></thead><tbody>` +
+    db.team.map(t=>`<tr>
+      <td><b>${t.name}</b></td>
+      <td><span class="badge badge-blue">${t.role}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px">+${t.phone}</td>
+      <td>
+        <button class="btn btn-wa btn-sm" onclick="sendWATest('${t.id}')">Test</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTeamMember('${t.id}')">x</button>
+      </td>
+    </tr>`).join('') + '</tbody></table>'
+  : '<div style="color:var(--muted);font-size:12px;padding:10px 0">No team members yet. Add them below.</div>';
+}
+
+// ============================================================
+// CRUD
+// ============================================================
+function saveProject() {
+  const name=v('np-name').trim(); if(!name){alert('Enter project name');return;}
+  const eid=v('np-id');
+  const existing = eid ? db.projects.find(p=>p.id===eid) : null;
+
+  const values = {
+    estimated: v('np-estimated')||null,
+    quoted: v('np-quoted')||null,
+    awarded: v('np-value')||null,
+    revised: v('np-revised')||null
+  };
+  // value shown = revised > awarded > quoted > estimated
+  const displayValue = values.revised||values.awarded||values.quoted||values.estimated||0;
+
+  if(existing) {
+    // EDIT mode
+    existing.name=name; existing.client=v('np-client'); existing.type=v('np-type');
+    existing.stage=v('np-stage')||existing.stage;
+    existing.start=v('np-start'); existing.end=v('np-end'); existing.location=v('np-location');
+    existing.desc=v('np-desc'); existing.consultant=v('np-consultant'); existing.mc=v('np-mc');
+    existing.value=displayValue; existing.values=values;
+    if(!existing.checklists) existing.checklists={};
+    logActivity('Project updated: '+name);
+  } else {
+    // NEW mode
+    const stage=v('np-stage')||'Enquiry';
+    const p={id:uid(),name,client:v('np-client'),value:displayValue,values,type:v('np-type'),
+      start:v('np-start'),end:v('np-end'),location:v('np-location'),desc:v('np-desc'),
+      consultant:v('np-consultant'),mc:v('np-mc'),stage,checklists:{},variations:[]};
+    db.projects.push(p);
+    logActivity('Project created: '+name);
+  }
+  saveDB(); closeModal('addProject');
+  if(currentProject) openProjectDetail(currentProject); else navigate('projects');
+}
+
+function editProject(pid) {
+  const p=db.projects.find(x=>x.id===pid); if(!p) return;
+  document.getElementById('addProjectTitle').textContent='EDIT PROJECT';
+  document.getElementById('saveProjectBtn').textContent='Save Changes';
+  document.getElementById('np-id').value=p.id;
+  document.getElementById('np-name').value=p.name||'';
+  document.getElementById('np-client').value=p.client||'';
+  document.getElementById('np-type').value=p.type||'Curtain Wall';
+  document.getElementById('np-stage').value=p.stage||'Enquiry';
+  document.getElementById('np-start').value=p.start||'';
+  document.getElementById('np-end').value=p.end||'';
+  document.getElementById('np-location').value=p.location||'';
+  document.getElementById('np-desc').value=p.desc||'';
+  document.getElementById('np-consultant').value=p.consultant||'';
+  document.getElementById('np-mc').value=p.mc||'';
+  const vals=p.values||{};
+  document.getElementById('np-estimated').value=vals.estimated||p.value||'';
+  document.getElementById('np-quoted').value=vals.quoted||'';
+  document.getElementById('np-value').value=vals.awarded||'';
+  document.getElementById('np-revised').value=vals.revised||'';
+  document.getElementById('modal-addProject').classList.add('open');
+}
+
+function openNewProjectModal() {
+  document.getElementById('addProjectTitle').textContent='NEW PROJECT';
+  document.getElementById('saveProjectBtn').textContent='Create Project';
+  document.getElementById('np-id').value='';
+  ['np-name','np-client','np-start','np-end','np-location','np-desc','np-consultant','np-mc','np-estimated','np-quoted','np-value','np-revised'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  openModal('addProject');
+}
+
+function addVariation() {
+  const desc=v('vo-desc').trim(); if(!desc){alert('Enter description');return;}
+  const p=db.projects.find(x=>x.id===currentProject); if(!p) return;
+  if(!p.variations) p.variations=[];
+  const isAddition = v('vo-type').includes('Addition');
+  const amount=+v('vo-amount')||0;
+  const vo={id:uid(),desc,no:v('vo-no'),type:isAddition?'Addition':'Deduction',amount,date:v('vo-date'),status:v('vo-status'),remarks:v('vo-remarks')};
+  p.variations.push(vo);
+  // Recalculate revised value
+  const base=+(p.values&&p.values.awarded?p.values.awarded:p.value)||0;
+  const totalVar=p.variations.filter(v=>v.status==='Approved').reduce((s,v)=>s+(v.type==='Addition'?+v.amount:-+v.amount),0);
+  const newRevised=base+totalVar;
+  if(!p.values) p.values={};
+  p.values.revised=newRevised||null;
+  p.value=+(p.values.revised||p.values.awarded||p.values.quoted||p.values.estimated)||0;
+  logActivity('Variation added: '+desc+' ('+vo.type+' Rs.'+amount+')');
+  saveDB(); closeModal('addVariation');
+  openProjectDetail(currentProject);
+}
+
+// EDIT TASK
+function editTask(tid) {
+  const t=db.tasks.find(x=>x.id===tid); if(!t) return;
+  populateAllSelects();
+  document.getElementById('et-id').value=t.id;
+  document.getElementById('et-task').value=t.task||'';
+  document.getElementById('et-assign').value=t.assignId||t.assign||'';
+  document.getElementById('et-due').value=t.due||'';
+  document.getElementById('et-priority').value=t.priority||'Medium';
+  document.getElementById('et-status').value=t.status||'Pending';
+  document.getElementById('et-notes').value=t.notes||'';
+  // populate assign select
+  const assignIds=['et-assign'];
+  assignIds.forEach(sid=>{
+    const sel=document.getElementById(sid); if(!sel) return;
+    const defaults=['Drawing Team','Estimation','Procurement','Finance','Admin','Site Supervisor','Me (Manager)'];
+    let opts='';
+    if(db.team.length>0){opts='<optgroup label="Your Team">'+db.team.map(tm=>`<option value="${tm.id}">${tm.name} (${tm.role})</option>`).join('')+'</optgroup><optgroup label="General">'}
+    defaults.forEach(d=>{ opts+=`<option value="${d}">${d}</option>`; });
+    if(db.team.length>0) opts+='</optgroup>';
+    sel.innerHTML=opts;
+  });
+  document.getElementById('et-assign').value=t.assignId||t.assign||'';
+  openModal('editTask');
+}
+function saveEditTask() {
+  const id=v('et-id'); const t=db.tasks.find(x=>x.id===id); if(!t) return;
+  const assignVal=v('et-assign');
+  const member=db.team.find(x=>x.id===assignVal);
+  t.task=v('et-task'); t.assign=member?member.name+' ('+member.role+')':assignVal;
+  t.assignId=assignVal; t.due=v('et-due'); t.priority=v('et-priority');
+  t.status=v('et-status'); t.notes=v('et-notes');
+  logActivity('Task updated: '+t.task); saveDB(); closeModal('editTask');
+  if(currentProject) openProjectDetail(currentProject); else renderTasks();
+}
+
+// EDIT MATERIAL
+function editMaterial(mid) {
+  const m=db.materials.find(x=>x.id===mid); if(!m) return;
+  document.getElementById('em-id').value=m.id;
+  document.getElementById('em-name').value=m.name||'';
+  document.getElementById('em-unit').value=m.unit||'Nos';
+  document.getElementById('em-qty').value=m.qty||0;
+  document.getElementById('em-procured').value=m.procured||0;
+  document.getElementById('em-needby').value=m.needBy||'';
+  document.getElementById('em-supplier').value=m.supplier||'';
+  document.getElementById('em-rate').value=m.rate||0;
+  document.getElementById('em-remarks').value=m.remarks||'';
+  openModal('editMaterial');
+}
+function saveEditMaterial() {
+  const id=v('em-id'); const m=db.materials.find(x=>x.id===id); if(!m) return;
+  m.name=v('em-name'); m.unit=v('em-unit'); m.qty=+v('em-qty')||0;
+  m.procured=+v('em-procured')||0; m.needBy=v('em-needby');
+  m.supplier=v('em-supplier'); m.rate=v('em-rate'); m.remarks=v('em-remarks');
+  logActivity('Material updated: '+m.name); saveDB(); closeModal('editMaterial');
+  if(currentProject) openProjectDetail(currentProject); else renderMaterialsView();
+}
+
+// EDIT ISSUE
+function editIssue(iid) {
+  const i=db.issues.find(x=>x.id===iid); if(!i) return;
+  document.getElementById('ei-id').value=i.id;
+  document.getElementById('ei-title').value=i.title||'';
+  document.getElementById('ei-severity').value=i.severity||'Medium';
+  document.getElementById('ei-status').value=i.status||'Open';
+  document.getElementById('ei-target').value=i.target||'';
+  document.getElementById('ei-desc').value=i.desc||'';
+  openModal('editIssue');
+}
+function saveEditIssue() {
+  const id=v('ei-id'); const i=db.issues.find(x=>x.id===id); if(!i) return;
+  i.title=v('ei-title'); i.severity=v('ei-severity');
+  i.status=v('ei-status'); i.target=v('ei-target'); i.desc=v('ei-desc');
+  logActivity('Issue updated: '+i.title); saveDB(); closeModal('editIssue');
+  if(currentProject) openProjectDetail(currentProject); else renderIssuesView();
+}
+
+function addTask() {
+  const task=v('at-task').trim(); if(!task){alert('Enter task');return;}
+  const assignVal=v('at-assign');
+  const member=db.team.find(t=>t.id===assignVal);
+  const assignName=member?member.name+' ('+member.role+')':assignVal;
+  const t={id:uid(),task,projectId:v('at-project'),assign:assignName,assignId:assignVal,due:v('at-due'),priority:v('at-priority'),notes:v('at-notes'),status:'Pending'};
+  db.tasks.push(t); logActivity('Task added: '+task); saveDB(); closeModal('addTask');
+  if(member&&member.phone) sendWAForTask(t);
+  if(currentProject) openProjectDetail(currentProject); else renderTasks();
+}
+
+async function addRevision() {
+  const title = v('rv-title').trim(); if(!title){alert('Enter title');return;}
+  const saveBtn = document.getElementById('modal-addRevision').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading files...'; }
+  const files = await uploadFilesFromInput('rv-file', saveBtn);
+  const r = {id:uid(),projectId:currentProject,title,type:v('rv-type'),rev:v('rv-rev'),to:v('rv-to'),by:v('rv-by'),date:v('rv-date'),status:v('rv-status'),notes:v('rv-notes'),files};
+  db.revisions.push(r); logActivity('Revision: '+title+' '+r.rev); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Save Revision';}
+  closeModal('addRevision');
+  openProjectDetail(currentProject); setTimeout(()=>switchTabByName('ptab-revisions'),100);
+}
+
+function addMaterial() {
+  const name=v('am-name').trim(); if(!name){alert('Enter material name');return;}
+  const m={id:uid(),name,projectId:v('am-project'),unit:v('am-unit'),qty:+v('am-qty')||0,procured:+v('am-procured')||0,needBy:v('am-needby'),supplier:v('am-supplier'),rate:v('am-rate')};
+  db.materials.push(m); logActivity('Material added: '+name); saveDB(); closeModal('addMaterial');
+  if(currentProject) openProjectDetail(currentProject); else renderMaterialsView();
+}
+
+async function addBatch() {
+  const mid = document.getElementById('modal-addBatch').dataset.mid;
+  const m = db.materials.find(x=>x.id===mid); if(!m) return;
+  const qty = +v('bt-qty')||0; if(qty<=0){alert('Enter qty');return;}
+  const saveBtn = document.getElementById('modal-addBatch').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading...'; }
+  const files = await uploadFilesFromInput('bt-file', saveBtn);
+  const b = {id:uid(),materialId:mid,no:v('bt-no'),qty,date:v('bt-date'),vehicle:v('bt-vehicle'),received:v('bt-received'),condition:v('bt-condition'),remarks:v('bt-remarks'),files};
+  db.batches.push(b); logActivity('Batch: '+qty+' '+m.unit+' of '+m.name); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Save Batch';}
+  closeModal('addBatch');
+  if(currentProject) openProjectDetail(currentProject); else renderMaterialsView();
+}
+
+async function addCert() {
+  const name = v('ct-name').trim(); if(!name){alert('Enter certificate name');return;}
+  const saveBtn = document.getElementById('modal-addCert').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading...'; }
+  const files = await uploadFilesFromInput('ct-file', saveBtn);
+  const c = {id:uid(),projectId:currentProject,name,material:v('ct-material'),no:v('ct-no'),issuer:v('ct-issuer'),date:v('ct-date'),valid:v('ct-valid'),status:v('ct-status'),notes:v('ct-notes'),files};
+  db.certs.push(c); logActivity('Certificate: '+name); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Save Certificate';}
+  closeModal('addCert');
+  openProjectDetail(currentProject); setTimeout(()=>switchTabByName('ptab-delivery'),100);
+}
+
+async function addMIR() {
+  const title = v('mir-title').trim(); if(!title){alert('Enter MIR title');return;}
+  const saveBtn = document.getElementById('modal-addMIR').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading...'; }
+  const files = await uploadFilesFromInput('mir-file', saveBtn);
+  const m = {id:uid(),projectId:currentProject,title,no:v('mir-no'),material:v('mir-material'),date:v('mir-date'),by:v('mir-by'),clientRep:v('mir-client-rep'),result:v('mir-result'),sigStatus:v('mir-sig'),notes:v('mir-notes'),files};
+  db.mir.push(m); logActivity('MIR/WIR: '+title); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Save Report';}
+  closeModal('addMIR');
+  openProjectDetail(currentProject); setTimeout(()=>switchTabByName('ptab-mir'),100);
+}
+
+async function addIssue() {
+  const title = v('is-title').trim(); if(!title){alert('Enter issue title');return;}
+  const saveBtn = document.getElementById('modal-addIssue').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading...'; }
+  const files = await uploadFilesFromInput('is-file', saveBtn);
+  const assignVal = v('is-assign');
+  const member = db.team.find(t=>t.id===assignVal);
+  const assignName = member ? member.name+' ('+member.role+')' : assignVal;
+  const i = {id:uid(),title,projectId:v('is-project'),severity:v('is-severity'),cat:v('is-cat'),by:v('is-by'),date:v('is-date'),assign:assignName,assignId:assignVal,target:v('is-target'),desc:v('is-desc'),status:'Open',files};
+  db.issues.push(i); logActivity('Issue: '+title); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Raise Issue';}
+  closeModal('addIssue');
+  if(currentProject) openProjectDetail(currentProject); else renderIssuesView();
+}
+
+function addTool() {
+  const name=v('tl-name').trim(); if(!name){alert('Enter tool name');return;}
+  const t={id:uid(),name,projectId:v('tl-project'),qty:+v('tl-qty')||1,avail:+v('tl-avail')||0,needBy:v('tl-needby'),source:v('tl-source'),remarks:v('tl-remarks')};
+  db.tools.push(t); logActivity('Tool added: '+name); saveDB(); closeModal('addTool');
+  if(currentProject) openProjectDetail(currentProject); else renderToolsView();
+}
+
+function addLabor() {
+  const trade=v('lb-trade').trim(); if(!trade){alert('Enter trade');return;}
+  const l={id:uid(),trade,projectId:v('lb-project'),req:+v('lb-req')||1,dep:+v('lb-dep')||0,mobDate:v('lb-mobdate'),source:v('lb-source'),remarks:v('lb-remarks')};
+  db.labor.push(l); logActivity('Labor added: '+trade); saveDB(); closeModal('addLabor');
+  if(currentProject) openProjectDetail(currentProject); else renderLaborView();
+}
+
+function addFinance() {
+  const m={id:uid(),projectId:v('fn-project'),type:v('fn-type'),desc:v('fn-desc'),amount:v('fn-amount'),date:v('fn-date'),status:v('fn-status')};
+  db.finance.push(m); logActivity('Finance entry: '+m.type+' '+inr(m.amount)); saveDB(); closeModal('addFinance');
+  if(currentProject) openProjectDetail(currentProject); else renderFinanceView();
+}
+
+async function addDocument() {
+  const name = v('dc-name').trim(); if(!name){alert('Enter document name');return;}
+  const saveBtn = document.getElementById('modal-addDocument').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading...'; }
+  const files = await uploadFilesFromInput('dc-file', saveBtn);
+  const d = {id:uid(),name,projectId:v('dc-project'),type:v('dc-type'),by:v('dc-by'),date:v('dc-date'),status:v('dc-status'),notes:v('dc-notes'),files};
+  db.documents.push(d); logActivity('Document: '+name); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Save Document';}
+  closeModal('addDocument');
+  if(currentProject) openProjectDetail(currentProject); else renderDocumentsView();
+}
+
+async function addLog() {
+  const p = db.projects.find(pr=>pr.id===currentProject); if(!p) return;
+  const saveBtn = document.getElementById('modal-addLog').querySelector('.btn-primary');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.textContent='Uploading...'; }
+  const files = await uploadFilesFromInput('lg-file', saveBtn);
+  const l = {id:uid(),projectId:currentProject,date:v('lg-date'),weather:v('lg-weather'),workers:v('lg-workers'),prog:v('lg-prog'),work:v('lg-work'),issues:v('lg-issues'),instructions:v('lg-instructions'),files};
+  db.logs.push(l); logActivity('Daily log: '+p.name); saveDB();
+  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Save Log';}
+  closeModal('addLog');
+  openProjectDetail(currentProject); setTimeout(()=>switchTabByName('ptab-log'),100);
+}
+
+function addTeamMember() {
+  const name=document.getElementById('tm-name').value.trim();
+  const phone=document.getElementById('tm-phone').value.trim().replace(/\D/g,'');
+  const role=v('tm-role');
+  if(!name){alert('Enter name');return;}
+  if(!phone){alert('Enter WhatsApp number');return;}
+  db.team.push({id:uid(),name,phone,role});
+  logActivity('Team member added: '+name);
+  saveDB();
+  document.getElementById('tm-name').value='';
+  document.getElementById('tm-phone').value='';
+  renderTeamView();
+}
+
+function deleteTeamMember(id){if(confirm('Remove?')){db.team=db.team.filter(t=>t.id!==id);saveDB();renderTeamView();}}
+function toggleTask(tid){const t=db.tasks.find(x=>x.id===tid);if(t){t.status=t.status==='Done'?'Pending':'Done';saveDB();}if(currentProject)openProjectDetail(currentProject);else renderTasks();}
+function advanceStage(pid){const p=db.projects.find(pr=>pr.id===pid);const i=PROJECT_STAGES.indexOf(p.stage);if(i<PROJECT_STAGES.length-1){p.stage=PROJECT_STAGES[i+1];logActivity(p.name+' - stage: '+p.stage);saveDB();openProjectDetail(pid);}}
+function regressStage(pid){const p=db.projects.find(pr=>pr.id===pid);const i=PROJECT_STAGES.indexOf(p.stage);if(i>0){p.stage=PROJECT_STAGES[i-1];saveDB();openProjectDetail(pid);}}
+function resolveIssue(id){const i=db.issues.find(x=>x.id===id);if(i){i.status='Resolved';logActivity('Issue resolved: '+i.title);saveDB();}if(currentProject)openProjectDetail(currentProject);else renderIssuesView();}
+function markMIRSigned(id){const m=db.mir.find(x=>x.id===id);if(m){m.sigStatus='Signed – Approved';logActivity('MIR signed: '+m.title);saveDB();}openProjectDetail(currentProject);}
+function quickUpdateMaterial(mid){const m=db.materials.find(x=>x.id===mid);if(!m)return;const p=prompt('Ordered qty ('+m.procured+'):',m.procured);if(p!==null)m.procured=+p;saveDB();if(currentProject)openProjectDetail(currentProject);else renderMaterialsView();}
+
+function deleteProject(pid){if(!confirm('Delete project and all its data?'))return;const p=db.projects.find(pr=>pr.id===pid);['projects','tasks','materials','batches','certs','mir','issues','tools','labor','finance','documents','logs','revisions'].forEach(k=>{if(k==='projects')db[k]=db[k].filter(x=>x.id!==pid);else if(db[k][0]&&'projectId'in db[k][0])db[k]=db[k].filter(x=>x.projectId!==pid);});if(p)logActivity('Project deleted: '+p.name);saveDB();renderProjects();}
+function deleteTask(id){if(confirm('Delete?')){db.tasks=db.tasks.filter(t=>t.id!==id);saveDB();if(currentProject)openProjectDetail(currentProject);else renderTasks();}}
+function deleteMaterial(id){if(confirm('Delete material and all its batches?')){db.materials=db.materials.filter(m=>m.id!==id);db.batches=db.batches.filter(b=>b.materialId!==id);saveDB();if(currentProject)openProjectDetail(currentProject);else renderMaterialsView();}}
+function deleteTool(id){if(confirm('Delete?')){db.tools=db.tools.filter(t=>t.id!==id);saveDB();if(currentProject)openProjectDetail(currentProject);else renderToolsView();}}
+function deleteLabor(id){if(confirm('Delete?')){db.labor=db.labor.filter(l=>l.id!==id);saveDB();if(currentProject)openProjectDetail(currentProject);else renderLaborView();}}
+function deleteFinance(id){if(confirm('Delete?')){db.finance=db.finance.filter(f=>f.id!==id);saveDB();if(currentProject)openProjectDetail(currentProject);else renderFinanceView();}}
+function deleteIssue(id){if(confirm('Delete?')){db.issues=db.issues.filter(i=>i.id!==id);saveDB();if(currentProject)openProjectDetail(currentProject);else renderIssuesView();}}
+
+// ============================================================
+// WHATSAPP
+// ============================================================
+function buildWAMessage(name, task, priority, due, project, notes) {
+  const pMap = { High:'[HIGH PRIORITY]', Medium:'[MEDIUM PRIORITY]', Low:'[LOW PRIORITY]' };
+  return `Hello ${name},
+
+A task has been assigned to you.
+
+TASK: ${task}
+PRIORITY: ${pMap[priority]||priority}
+DUE DATE: ${due||'Not set'}
+PROJECT: ${project||'General'}
+${notes?'NOTES: '+notes:''}
+
+Please confirm receipt and proceed accordingly.
+
+- FacadeOps Project Management`;
+}
+
+function updateWAPreview() {
+  const assignVal = v('at-assign');
+  const member = db.team.find(t=>t.id===assignVal);
+  const box = document.getElementById('wa-preview-box');
+  const btn = document.getElementById('addTaskBtn');
+  if (member && member.phone) {
+    const proj = db.projects.find(p=>p.id===v('at-project'));
+    const msg = buildWAMessage(member.name, v('at-task')||'(task)', v('at-priority'), v('at-due'), proj?proj.name:'', v('at-notes'));
+    document.getElementById('wa-preview-text').textContent = msg;
+    box.style.display = 'block';
+    btn.textContent = 'Save Task + Send WhatsApp';
+    btn.style.background = 'var(--wa)';
+    btn.style.color = '#fff';
+  } else {
+    box.style.display = 'none';
+    btn.textContent = 'Save Task';
+    btn.style.background = '';
+    btn.style.color = '';
+  }
+}
+
+function sendWAForTask(task) {
+  const member = db.team.find(t=>t.id===task.assignId);
+  if(!member||!member.phone) return;
+  const proj = db.projects.find(p=>p.id===task.projectId);
+  const msg = buildWAMessage(member.name, task.task, task.priority, task.due, proj?proj.name:'', task.notes);
+  setTimeout(()=>{ window.open('https://wa.me/'+member.phone+'?text='+encodeURIComponent(msg),'_blank'); }, 400);
+}
+
+function sendWATest(tid) {
+  const t = db.team.find(x=>x.id===tid); if(!t) return;
+  const msg = 'Hello '+t.name+'! This is a test message from FacadeOps. Your WhatsApp is connected successfully.';
+  window.open('https://wa.me/'+t.phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(name) {
+  populateAllSelects();
+  document.getElementById('modal-'+name).classList.add('open');
+  if(name==='addTask') setTimeout(updateWAPreview, 50);
+}
+function closeModal(name) { document.getElementById('modal-'+name).classList.remove('open'); }
+
+function openModalForProject(modalName, pid) {
+  openModal(modalName);
+  const map={addTask:'at-project',addMaterial:'am-project',addTool:'tl-project',addLabor:'lb-project',addFinance:'fn-project',addDocument:'dc-project',addIssue:'is-project'};
+  setTimeout(()=>{ const sel=document.getElementById(map[modalName]); if(sel) sel.value=pid; if(modalName==='addTask') updateWAPreview(); }, 60);
+}
+
+function openRevisionModal(pid) { currentProject=pid; openModal('addRevision'); document.getElementById('rv-date').value=new Date().toISOString().split('T')[0]; }
+function openBatchModal(mid) {
+  const m=db.materials.find(x=>x.id===mid); if(!m) return;
+  const totalDel=db.batches.filter(b=>b.materialId===mid).reduce((s,b)=>s+Number(b.qty),0);
+  document.getElementById('modal-addBatch').dataset.mid=mid;
+  document.getElementById('batch-material-info').innerHTML=`<b>${m.name}</b><br>Total Required: ${m.qty} ${m.unit} | Ordered: ${m.procured} ${m.unit} | Delivered so far: ${totalDel} ${m.unit} | Remaining to deliver: ${m.qty-totalDel} ${m.unit}`;
+  document.getElementById('bt-date').value=new Date().toISOString().split('T')[0];
+  openModal('addBatch');
+}
+function openCertModal(pid) { currentProject=pid; openModal('addCert'); document.getElementById('ct-date').value=new Date().toISOString().split('T')[0]; }
+function openMIRModal(pid) { currentProject=pid; populateAllSelects(); openModal('addMIR'); document.getElementById('mir-date').value=new Date().toISOString().split('T')[0]; }
+function openLogModal(pid) { currentProject=pid; openModal('addLog'); document.getElementById('lg-date').value=new Date().toISOString().split('T')[0]; }
+
+function populateAllSelects() {
+  const projIds=['at-project','am-project','tl-project','lb-project','fn-project','dc-project','is-project'];
+  projIds.forEach(sid=>{ const sel=document.getElementById(sid); if(!sel) return; sel.innerHTML=db.projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')||'<option value="">No projects</option>'; });
+  // team assign dropdowns
+  const assignIds=['at-assign','is-assign'];
+  assignIds.forEach(sid=>{
+    const sel=document.getElementById(sid); if(!sel) return;
+    const defaults=['Drawing Team','Estimation','Procurement','Finance','Admin','Site Supervisor','Me (Manager)'];
+    let opts='';
+    if(db.team.length>0){opts='<optgroup label="Your Team">'+db.team.map(t=>`<option value="${t.id}">${t.name} (${t.role})</option>`).join('')+'</optgroup><optgroup label="General">';}
+    defaults.forEach(d=>{ opts+=`<option value="${d}">${d}</option>`; });
+    if(db.team.length>0) opts+='</optgroup>';
+    sel.innerHTML=opts;
+  });
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o=>{ o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');}); });
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(el,tabId) {
+  el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.project-tab').forEach(t=>t.style.display='none');
+  document.getElementById(tabId).style.display='block';
+}
+function switchTabByName(tabId) {
+  document.querySelectorAll('.project-tab').forEach(t=>t.style.display='none');
+  const el=document.getElementById(tabId); if(el) el.style.display='block';
+  document.querySelectorAll('.tab').forEach(t=>{ if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+tabId+"'")){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');}});
+}
+
+// ============================================================
+// VARIATION ORDERS HELPER
+// ============================================================
+function openVariationModal(pid) {
+  currentProject = pid;
+  document.getElementById('vo-date').value = new Date().toISOString().split('T')[0];
+  openModal('addVariation');
+}
+
+// Update project overview to show value breakdown and variations
+function renderValueBreakdown(p) {
+  const vals = p.values || {};
+  const variations = (p.variations||[]);
+  const approvedVars = variations.filter(v=>v.status==='Approved');
+  const pendingVars = variations.filter(v=>v.status==='Pending Approval');
+  const totalVarAmount = approvedVars.reduce((s,v)=>s+(v.type==='Addition'?+v.amount:-+v.amount),0);
+  
+  let html = '<div class="card"><div class="card-title">Project Value Breakdown</div>';
+  html += '<table style="width:100%;font-size:13px">';
+  if(vals.estimated) html += ri('Estimated Value (Enquiry)', inr(vals.estimated));
+  if(vals.quoted) html += ri('Quoted / Tender Value', inr(vals.quoted));
+  if(vals.awarded) html += ri('Awarded / Contract Value', '<b style="color:var(--accent3)">'+inr(vals.awarded)+'</b>');
+  
+  if(variations.length > 0) {
+    html += '<tr><td colspan="2" style="padding:8px 0 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Variation Orders</td></tr>';
+    variations.forEach(vo => {
+      const sign = vo.type==='Addition' ? '+' : '-';
+      const color = vo.type==='Addition' ? 'var(--accent3)' : 'var(--danger)';
+      html += `<tr><td style="padding:3px 0;color:var(--muted)">${vo.no||'VO'} - ${vo.desc}</td><td style="color:${color};font-weight:700">${sign}${inr(vo.amount)} <span class="badge ${vo.status==='Approved'?'badge-green':vo.status==='Rejected'?'badge-red':'badge-yellow'}">${vo.status}</span></td></tr>`;
+    });
+    html += ri('Total Approved Variations', (totalVarAmount>=0?'+':'')+inr(totalVarAmount));
+  }
+  
+  const finalVal = vals.revised || (vals.awarded && totalVarAmount ? +vals.awarded+totalVarAmount : null) || vals.awarded || vals.quoted || vals.estimated;
+  if(finalVal) html += `<tr><td style="padding:6px 0;font-weight:700">Current / Revised Value</td><td style="font-weight:700;font-size:15px;color:var(--accent)">${inr(finalVal)}</td></tr>`;
+  
+  html += '</table>';
+  if(pendingVars.length) html += `<div class="alert alert-warn" style="margin-top:10px">${pendingVars.length} variation(s) pending approval</div>`;
+  html += '</div>';
+  return html;
+}
+
+
+// ============================================================
+// GOOGLE DRIVE FILE UPLOAD ENGINE
+// ============================================================
+async function ensureDriveFolder() {
+  if (!accessToken) return null;
+  if (driveFolderId) return driveFolderId;
+  try {
+    // Search for existing folder
+    const r = await fetch(
+      "https://www.googleapis.com/drive/v3/files?q=name='" + DRIVE_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)",
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    const list = await r.json();
+    if (list.files && list.files.length > 0) {
+      driveFolderId = list.files[0].id;
+      return driveFolderId;
+    }
+    // Create folder
+    const cr = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    const folder = await cr.json();
+    driveFolderId = folder.id;
+    logActivity('Google Drive folder created: ' + DRIVE_FOLDER_NAME);
+    return driveFolderId;
+  } catch(e) {
+    console.error('Folder create failed:', e);
+    return null;
+  }
+}
+
+async function uploadFileToDrive(file, progressCb) {
+  // Upload one file to Google Drive, return {driveId, name, size, mimeType, downloadLink}
+  if (!accessToken) { alert('Sign in with Google to upload files.'); return null; }
+  if (file.size > 25 * 1024 * 1024) { alert(file.name + ' exceeds 25 MB limit. Please compress or split the file.'); return null; }
+  const fid = await ensureDriveFolder();
+  if (!fid) { alert('Could not create Google Drive folder. Check Drive permissions.'); return null; }
+  try {
+    if (progressCb) progressCb('Uploading ' + file.name + '...');
+    const form = new FormData();
+    const meta = JSON.stringify({ name: file.name, parents: [fid] });
+    form.append('metadata', new Blob([meta], { type: 'application/json' }));
+    form.append('file', file);
+    const r = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size,webViewLink',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + accessToken }, body: form }
+    );
+    if (!r.ok) throw new Error('Upload failed: ' + r.status + ' ' + await r.text());
+    const res = await r.json();
+    // Make readable by anyone with link (so download works from any device)
+    await fetch('https://www.googleapis.com/drive/v3/files/' + res.id + '/permissions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+    return {
+      driveId: res.id,
+      name: file.name,
+      size: file.size,
+      mimeType: res.mimeType || file.type || 'application/octet-stream',
+      downloadLink: 'https://drive.google.com/uc?export=download&id=' + res.id,
+      viewLink: res.webViewLink || ('https://drive.google.com/file/d/' + res.id + '/view')
+    };
+  } catch(e) {
+    console.error('Upload error:', e);
+    alert('Upload failed for ' + file.name + ': ' + e.message);
+    return null;
+  }
+}
+
+async function uploadFilesFromInput(inputId, saveBtn) {
+  // Upload all files from a file input. Returns array of file objects.
+  const input = document.getElementById(inputId);
+  if (!input || !input.files || !input.files.length) return [];
+  if (!accessToken) {
+    alert('You must be signed in with Google to upload files.
+
+Files will not be saved in local/demo mode.');
+    return [];
+  }
+  const files = Array.from(input.files);
+  const results = [];
+  const origText = saveBtn ? saveBtn.textContent : '';
+  for (let i = 0; i < files.length; i++) {
+    if (saveBtn) saveBtn.textContent = 'Uploading ' + (i+1) + '/' + files.length + ': ' + files[i].name.substring(0,25) + '...';
+    const r = await uploadFileToDrive(files[i]);
+    if (r) results.push(r);
+  }
+  if (saveBtn) saveBtn.textContent = origText;
+  input.value = ''; // Clear input
+  return results;
+}
+
+function renderFileList(files, recordId) {
+  if (!files || !files.length) return '<span style="color:var(--muted);font-size:11px">No files</span>';
+  return files.map(f => {
+    const icon = f.mimeType && f.mimeType.includes('image') ? '🖼' :
+                 f.mimeType && f.mimeType.includes('pdf') ? '📄' : '📎';
+    const kb = Math.round((f.size || 0) / 1024);
+    const sz = kb > 1024 ? (kb/1024).toFixed(1) + 'MB' : kb + 'KB';
+    const link = f.downloadLink || f.viewLink || '#';
+    return `<a href="${link}" target="_blank" class="attached-file" style="text-decoration:none;cursor:pointer" title="Click to download/view ${f.name}">
+      ${icon} ${f.name} <span style="color:var(--muted);font-size:10px">${sz}</span>
+    </a>`;
+  }).join('');
+}
+
+async function renderFileManager() {
+  const el = document.getElementById('fileManagerList');
+  if (!el) return;
+  if (!accessToken) {
+    el.innerHTML = '<div class="alert alert-warn">Sign in with Google to view uploaded files. Files are stored in your Google Drive.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="color:var(--muted)">Loading files from Google Drive...</div>';
+  try {
+    const fid = await ensureDriveFolder();
+    if (!fid) { el.innerHTML = '<div class="alert alert-danger">Could not access Google Drive folder.</div>'; return; }
+    const r = await fetch(
+      "https://www.googleapis.com/drive/v3/files?q='" + fid + "' in parents and trashed=false&fields=files(id,name,mimeType,size,webViewLink,createdTime)&orderBy=createdTime desc&pageSize=100",
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    const list = await r.json();
+    if (!list.files || !list.files.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📁</div>No files uploaded yet.<br><span style="font-size:12px;color:var(--muted)">Files you attach to documents, revisions, MIRs, issues etc. will appear here.</span></div>';
+      return;
+    }
+    let totalBytes = 0;
+    el.innerHTML = '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>File Name</th><th>Type</th><th>Size</th><th>Uploaded On</th><th>Actions</th></tr></thead><tbody>' +
+      list.files.map(f => {
+        const kb = Math.round((f.size||0)/1024);
+        const sz = kb > 1024 ? (kb/1024).toFixed(1)+'MB' : kb+'KB';
+        totalBytes += (f.size||0);
+        const icon = f.mimeType && f.mimeType.includes('image') ? '🖼' : f.mimeType && f.mimeType.includes('pdf') ? '📄' : '📎';
+        const ext = (f.name.split('.').pop()||'').toLowerCase();
+        return `<tr>
+          <td>${icon} <b>${f.name}</b></td>
+          <td style="font-size:11px">${ext.toUpperCase()||'FILE'}</td>
+          <td style="font-size:11px">${sz}</td>
+          <td style="font-size:11px">${fmtDate(f.createdTime)}</td>
+          <td>
+            <a href="https://drive.google.com/uc?export=download&id=${f.id}" target="_blank" class="btn btn-success btn-sm">↓ Download</a>
+            <a href="${f.webViewLink}" target="_blank" class="btn btn-outline btn-sm">View</a>
+          </td>
+        </tr>`;
+      }).join('') + '</tbody></table></div>' +
+      `<div style="margin-top:12px;font-size:12px;color:var(--muted)">
+        ${list.files.length} files | ${(totalBytes/1024/1024).toFixed(2)} MB used |
+        <a href="https://drive.google.com/drive/folders/${fid}" target="_blank" style="color:var(--accent2)">Open folder in Google Drive</a>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '<div class="alert alert-danger">Error loading files: ' + e.message + '</div>';
+  }
+}
+
+// File storage is handled by Google Drive (uploadFilesFromInput / renderFileList)
+// Legacy stub — saveFilesToDB falls back gracefully
+function saveFilesToDB(id, inputId) {
+  console.warn('saveFilesToDB called — use uploadFilesFromInput instead');
+  return Promise.resolve([]);
+}
+
+function populateReportSelects() {
+  const sel = document.getElementById('rpt-project');
+  if (!sel) return;
+  sel.innerHTML = '<option value="all">All Projects</option>' +
+    db.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  // Default dates
+  const from = document.getElementById('rpt-from');
+  const to = document.getElementById('rpt-to');
+  if (from && !from.value) {
+    const d = new Date(); d.setMonth(d.getMonth()-3);
+    from.value = d.toISOString().split('T')[0];
+  }
+  if (to && !to.value) to.value = new Date().toISOString().split('T')[0];
+}
+
+function getReportData() {
+  const type = document.getElementById('rpt-type').value;
+  const pid = document.getElementById('rpt-project').value;
+  const from = document.getElementById('rpt-from').value;
+  const to = document.getElementById('rpt-to').value;
+  const fromD = from ? new Date(from) : null;
+  const toD = to ? new Date(to+'T23:59:59') : null;
+
+  const filterProj = arr => pid === 'all' ? arr : arr.filter(x => x.projectId === pid);
+  const filterDate = (arr, dateField) => arr.filter(x => {
+    if (!x[dateField]) return true;
+    const d = new Date(x[dateField]);
+    if (fromD && d < fromD) return false;
+    if (toD && d > toD) return false;
+    return true;
+  });
+  const projName = pid === 'all' ? 'All Projects' : (db.projects.find(p=>p.id===pid)||{}).name||'';
+
+  const sheets = {};
+
+  if (type === 'project' || type === 'full') {
+    sheets['Projects'] = {
+      headers: ['Project Name','Client','Type','Stage','Contract Value','Start','Deadline','Consultant','Status'],
+      rows: (pid==='all'?db.projects:db.projects.filter(p=>p.id===pid)).map(p => [
+        p.name, p.client||'', p.type||'', p.stage, p.value?'Rs.'+Number(p.value).toLocaleString('en-IN'):'',
+        p.start||'', p.end||'', p.consultant||'', p.stage==='Handover'?'Complete':'Active'
+      ])
+    };
+  }
+  if (type === 'tasks' || type === 'full') {
+    sheets['Tasks'] = {
+      headers: ['Task','Project','Assigned To','Due Date','Priority','Status','Notes'],
+      rows: filterDate(filterProj(db.tasks),'due').map(t => {
+        const p = db.projects.find(pr=>pr.id===t.projectId);
+        return [t.task, p?p.name:'', t.assign||'', t.due||'', t.priority||'', t.status||'Pending', t.notes||''];
+      })
+    };
+  }
+  if (type === 'issues' || type === 'full') {
+    sheets['Issues'] = {
+      headers: ['Issue Title','Project','Severity','Category','Raised By','Date Raised','Assigned To','Target Date','Status','Description'],
+      rows: filterDate(filterProj(db.issues),'date').map(i => {
+        const p = db.projects.find(pr=>pr.id===i.projectId);
+        return [i.title, p?p.name:'', i.severity||'', i.cat||'', i.by||'', i.date||'', i.assign||'', i.target||'', i.status||'Open', i.desc||''];
+      })
+    };
+  }
+  if (type === 'materials' || type === 'full') {
+    sheets['Materials'] = {
+      headers: ['Material','Project','Unit','Required','Ordered','Need By','Supplier','Rate (Rs.)','Status'],
+      rows: filterProj(db.materials).map(m => {
+        const p = db.projects.find(pr=>pr.id===m.projectId);
+        const rem = m.qty - m.procured;
+        return [m.name, p?p.name:'', m.unit||'', m.qty||0, m.procured||0, m.needBy||'', m.supplier||'', m.rate||0, rem>0?'Short':'OK'];
+      })
+    };
+    sheets['Delivery Batches'] = {
+      headers: ['Material','Batch No.','Qty','Date','Vehicle/Challan','Received By','Condition'],
+      rows: db.batches.filter(b => {
+        if(pid==='all') return true;
+        const m = db.materials.find(x=>x.id===b.materialId);
+        return m && m.projectId===pid;
+      }).map(b => {
+        const m = db.materials.find(x=>x.id===b.materialId);
+        return [m?m.name:'', b.no||'', b.qty||0, b.date||'', b.vehicle||'', b.received||'', b.condition||''];
+      })
+    };
+  }
+  if (type === 'labor' || type === 'full') {
+    sheets['Labor'] = {
+      headers: ['Trade/Role','Project','Required','Deployed','Shortfall','Mob. Date','Source'],
+      rows: filterProj(db.labor).map(l => {
+        const p = db.projects.find(pr=>pr.id===l.projectId);
+        return [l.trade, p?p.name:'', l.req||0, l.dep||0, (l.req-l.dep)||0, l.mobDate||'', l.source||''];
+      })
+    };
+  }
+  if (type === 'tools' || type === 'full') {
+    sheets['Tools'] = {
+      headers: ['Tool/Equipment','Project','Required','Mobilized','Shortfall','Need By','Source'],
+      rows: filterProj(db.tools).map(t => {
+        const p = db.projects.find(pr=>pr.id===t.projectId);
+        return [t.name, p?p.name:'', t.qty||0, t.avail||0, (t.qty-t.avail)||0, t.needBy||'', t.source||''];
+      })
+    };
+  }
+  if (type === 'finance' || type === 'full') {
+    sheets['Finance'] = {
+      headers: ['Project','Type','Description','Amount (Rs.)','Date','Status'],
+      rows: filterDate(filterProj(db.finance),'date').map(f => {
+        const p = db.projects.find(pr=>pr.id===f.projectId);
+        return [p?p.name:'', f.type||'', f.desc||'', f.amount||0, f.date||'', f.status||''];
+      })
+    };
+  }
+  if (type === 'documents' || type === 'full') {
+    sheets['Documents'] = {
+      headers: ['Document Name','Project','Type','Submitted By','Date','Status','Notes'],
+      rows: filterDate(filterProj(db.documents),'date').map(d => {
+        const p = db.projects.find(pr=>pr.id===d.projectId);
+        return [d.name, p?p.name:'', d.type||'', d.by||'', d.date||'', d.status||'', d.notes||''];
+      })
+    };
+  }
+  if (type === 'site' || type === 'full') {
+    sheets['Daily Logs'] = {
+      headers: ['Project','Date','Weather','Workers','Work Done','Issues/Problems','Instructions'],
+      rows: filterDate(filterProj(db.logs),'date').map(l => {
+        const p = db.projects.find(pr=>pr.id===l.projectId);
+        return [p?p.name:'', l.date||'', l.weather||'', l.workers||0, l.work||'', l.issues||'', l.instructions||''];
+      })
+    };
+  }
+
+  return { sheets, projName, type, from, to };
+}
+
+function generateReport(format) {
+  const { sheets, projName, type, from, to } = getReportData();
+  if (format === 'excel') generateExcel(sheets, projName, type, from, to);
+  else generatePDF(sheets, projName, type, from, to);
+}
+
+function previewReport() {
+  const { sheets, projName, type, from, to } = getReportData();
+  let html = `<div style="background:var(--surface2);padding:16px;border-radius:8px;margin-top:14px">
+    <div style="font-weight:700;margin-bottom:12px;color:var(--accent)">PREVIEW — ${type.toUpperCase()} REPORT | ${projName} | ${from||'All time'} to ${to||'Now'}</div>`;
+  Object.entries(sheets).forEach(([sheetName, data]) => {
+    html += `<div style="margin-bottom:16px"><div class="card-title">${sheetName} (${data.rows.length} records)</div>
+      <div style="overflow-x:auto"><table class="tbl"><thead><tr>${data.headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${data.rows.slice(0,5).map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
+      ${data.rows.length>5?`<tr><td colspan="${data.headers.length}" style="text-align:center;color:var(--muted)">...and ${data.rows.length-5} more rows in download</td></tr>`:''}
+      </tbody></table></div></div>`;
+  });
+  html += '</div>';
+  const existing = document.getElementById('reportPreview');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.id = 'reportPreview';
+  div.innerHTML = html;
+  document.getElementById('view-reports').appendChild(div);
+}
+
+// ── Excel generation (pure JS, no library needed) ──
+function generateExcel(sheets, projName, type, from, to) {
+  // Build CSV with multiple sections (works in Excel)
+  let csv = '';
+  const title = `FacadeOps Report - ${type.toUpperCase()}`;
+  csv += `"${title}"
+`;
+  csv += `"Project: ${projName}","Period: ${from||'All'} to ${to||'Now'}","Generated: ${new Date().toLocaleString()}"
+
+`;
+
+  Object.entries(sheets).forEach(([sheetName, data]) => {
+    csv += `"=== ${sheetName.toUpperCase()} ==="
+`;
+    csv += data.headers.map(h => `"${h}"`).join(',') + '
+';
+    data.rows.forEach(row => {
+      csv += row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',') + '
+';
+    });
+    // Summary row
+    csv += `"Total Records: ${data.rows.length}"
+
+`;
+  });
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `FacadeOps_${type}_${projName.replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  alert('Excel/CSV file downloaded! Open it in Microsoft Excel or Google Sheets.');
+}
+
+// ── PDF generation (pure JS, no library) ──
+function generatePDF(sheets, projName, type, from, to) {
+  const win = window.open('','_blank');
+  const title = `FacadeOps ${type.toUpperCase()} Report`;
+  let body = '';
+
+  Object.entries(sheets).forEach(([sheetName, data]) => {
+    body += `<h3 style="color:#f0a500;border-bottom:2px solid #f0a500;padding-bottom:6px;margin:20px 0 10px">${sheetName}</h3>`;
+    if (data.rows.length === 0) { body += '<p style="color:#666;font-style:italic">No records found for selected filters.</p>'; return; }
+    body += '<table><thead><tr>' + data.headers.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+    data.rows.forEach((row,i) => {
+      body += `<tr style="background:${i%2?'#f9f9f9':'#fff'}">${row.map(c=>`<td>${c}</td>`).join('')}</tr>`;
+    });
+    body += `</tbody></table><p style="color:#666;font-size:11px;margin-top:4px">Total: ${data.rows.length} records</p>`;
+  });
+
+  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:11px;color:#222;margin:20px}
+      h1{color:#f0a500;font-size:20px;margin-bottom:4px}
+      h3{font-size:13px}
+      .meta{color:#666;font-size:11px;margin-bottom:16px;border-bottom:1px solid #ddd;padding-bottom:8px}
+      table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10px}
+      th{background:#0d0f14;color:#f0a500;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase}
+      td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word;max-width:200px}
+      @media print{body{margin:10px}h3{page-break-before:auto}}
+      @page{margin:1.5cm;size:A4 landscape}
+    </style>
+  </head><body>
+    <h1>${title}</h1>
+    <div class="meta">
+      Project: <b>${projName}</b> &nbsp;|&nbsp;
+      Period: <b>${from||'All time'} to ${to||'Present'}</b> &nbsp;|&nbsp;
+      Generated: <b>${new Date().toLocaleString()}</b> &nbsp;|&nbsp;
+      By: FacadeOps Project Management System
+    </div>
+    ${body}
+  </body></html>`);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 500);
+}
+
+
+// ── MOBILE SIDEBAR TOGGLE ──
+function toggleSidebar() {
+  const nav = document.getElementById('sidebar-nav');
+  nav.classList.toggle('open');
+}
+// Close sidebar on nav item click (mobile)
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        const nav = document.getElementById('sidebar-nav');
+        if (nav) nav.classList.remove('open');
+      }
+    });
+  });
+});
+
+
+// ============================================================
+// CRUD WITH GOOGLE DRIVE FILE UPLOAD
+// ============================================================
+async function addRevision() {
+  const title=v('rv-title').trim(); if(!title){alert('Enter title');return;}
+  const btn=document.querySelector('#modal-addRevision .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('rv-file',btn);
+  const r={id:uid(),projectId:currentProject,title,type:v('rv-type'),rev:v('rv-rev'),to:v('rv-to'),by:v('rv-by'),date:v('rv-date'),status:v('rv-status'),notes:v('rv-notes'),files};
+  db.revisions.push(r); logActivity('Revision: '+title+' '+r.rev); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Save Revision';}
+  closeModal('addRevision');
+  openProjectDetail(currentProject);
+  setTimeout(()=>switchTabByName('ptab-revisions'),100);
+}
+
+async function addBatch() {
+  const mid=document.getElementById('modal-addBatch').dataset.mid;
+  const m=db.materials.find(x=>x.id===mid); if(!m) return;
+  const qty=+v('bt-qty')||0; if(qty<=0){alert('Enter valid quantity');return;}
+  const btn=document.querySelector('#modal-addBatch .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('bt-file',btn);
+  const b={id:uid(),materialId:mid,no:v('bt-no'),qty,date:v('bt-date'),vehicle:v('bt-vehicle'),received:v('bt-received'),condition:v('bt-condition'),remarks:v('bt-remarks'),files};
+  db.batches.push(b); logActivity('Batch: '+qty+' '+m.unit+' of '+m.name); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Save Batch';}
+  closeModal('addBatch');
+  if(currentProject) openProjectDetail(currentProject); else renderMaterialsView();
+}
+
+async function addCert() {
+  const name=v('ct-name').trim(); if(!name){alert('Enter certificate name');return;}
+  const btn=document.querySelector('#modal-addCert .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('ct-file',btn);
+  const c={id:uid(),projectId:currentProject,name,material:v('ct-material'),no:v('ct-no'),issuer:v('ct-issuer'),date:v('ct-date'),valid:v('ct-valid'),status:v('ct-status'),notes:v('ct-notes'),files};
+  db.certs.push(c); logActivity('Certificate: '+name); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Save Certificate';}
+  closeModal('addCert');
+  openProjectDetail(currentProject);
+  setTimeout(()=>switchTabByName('ptab-delivery'),100);
+}
+
+async function addMIR() {
+  const title=v('mir-title').trim(); if(!title){alert('Enter MIR title');return;}
+  const btn=document.querySelector('#modal-addMIR .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('mir-file',btn);
+  const m={id:uid(),projectId:currentProject,title,no:v('mir-no'),material:v('mir-material'),date:v('mir-date'),by:v('mir-by'),clientRep:v('mir-client-rep'),result:v('mir-result'),sigStatus:v('mir-sig'),notes:v('mir-notes'),files};
+  db.mir.push(m); logActivity('MIR/WIR: '+title); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Save Report';}
+  closeModal('addMIR');
+  openProjectDetail(currentProject);
+  setTimeout(()=>switchTabByName('ptab-mir'),100);
+}
+
+async function addIssue() {
+  const title=v('is-title').trim(); if(!title){alert('Enter issue title');return;}
+  const btn=document.querySelector('#modal-addIssue .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('is-file',btn);
+  const assignVal=v('is-assign');
+  const member=db.team.find(t=>t.id===assignVal);
+  const assignName=member?member.name+' ('+member.role+')':assignVal;
+  const i={id:uid(),title,projectId:v('is-project'),severity:v('is-severity'),cat:v('is-cat'),by:v('is-by'),date:v('is-date'),assign:assignName,assignId:assignVal,target:v('is-target'),desc:v('is-desc'),status:'Open',files};
+  db.issues.push(i); logActivity('Issue: '+title); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Raise Issue';}
+  closeModal('addIssue');
+  if(currentProject) openProjectDetail(currentProject); else renderIssuesView();
+}
+
+async function addDocument() {
+  const name=v('dc-name').trim(); if(!name){alert('Enter document name');return;}
+  const btn=document.querySelector('#modal-addDocument .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('dc-file',btn);
+  const d={id:uid(),name,projectId:v('dc-project'),type:v('dc-type'),by:v('dc-by'),date:v('dc-date'),status:v('dc-status'),notes:v('dc-notes'),files};
+  db.documents.push(d); logActivity('Document: '+name); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Save Document';}
+  closeModal('addDocument');
+  if(currentProject) openProjectDetail(currentProject); else renderDocumentsView();
+}
+
+async function addLog() {
+  const p=db.projects.find(pr=>pr.id===currentProject); if(!p) return;
+  const btn=document.querySelector('#modal-addLog .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Uploading...';}
+  const files=await uploadFilesFromInput('lg-file',btn);
+  const l={id:uid(),projectId:currentProject,date:v('lg-date'),weather:v('lg-weather'),workers:v('lg-workers'),prog:v('lg-prog'),work:v('lg-work'),issues:v('lg-issues'),instructions:v('lg-instructions'),files};
+  db.logs.push(l); logActivity('Daily log: '+p.name); saveDB();
+  if(btn){btn.disabled=false;btn.textContent='Save Log';}
+  closeModal('addLog');
+  openProjectDetail(currentProject);
+  setTimeout(()=>switchTabByName('ptab-log'),100);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadFromLocalStorage(); // Load local data immediately on startup
+</script>
+</body>
+</html>
