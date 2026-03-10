@@ -569,6 +569,12 @@ select option{background:var(--surface2)}
     <div class="modal-header"><div class="modal-title">ADD DELIVERY BATCH</div><button class="close-btn" onclick="closeModal('addBatch')">✕</button></div>
     <div class="modal-body">
       <div class="alert alert-info" id="batch-material-info" style="margin-bottom:12px"></div>
+      <div class="field" id="bt-material-row" style="margin-bottom:10px;display:none">
+        <label>Select Material</label>
+        <select id="bt-material-select" onchange="updateBatchMaterialInfo()">
+          <option value="">— Select a material —</option>
+        </select>
+      </div>
       <div class="form-grid">
         <div class="field"><label>Challan / DC No.</label><input id="bt-no" placeholder="DC-001"></div>
         <div class="field"><label>Qty Delivered</label><input id="bt-qty" type="number" value="0"></div>
@@ -788,11 +794,13 @@ const DRIVE_FOLDER_NAME = 'FacadeOps Files';
 const SCOPES_BASE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 const SCOPES_FULL = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
 
-let token        = null;   // OAuth access token
-let driveFileId  = null;   // ID of the DB JSON file in appDataFolder
-let driveFolderId = null;  // ID of "FacadeOps Files" folder
-let syncTimer    = null;
-let isDemoMode   = false;
+let token         = null;   // OAuth access token
+let tokenExpiry   = 0;      // timestamp when token expires
+let driveFileId   = null;   // ID of the DB JSON file in appDataFolder
+let driveFolderId = null;   // ID of "FacadeOps Files" folder
+let syncTimer     = null;
+let isDemoMode    = false;
+let tokenClient   = null;   // GIS token client — kept for silent refresh
 
 // ============================================================
 // DATABASE
@@ -858,7 +866,7 @@ function handleGoogleSignIn() {
     }
     statusEl.textContent = 'Opening Google sign-in...';
     try {
-      const client = google.accounts.oauth2.initTokenClient({
+      tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES_FULL,
         callback: async resp => {
@@ -873,6 +881,7 @@ function handleGoogleSignIn() {
             return;
           }
           token = resp.access_token;
+          tokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
           statusEl.textContent = 'Signed in! Loading your data...';
           await initAfterAuth();
         }
@@ -886,7 +895,7 @@ function handleGoogleSignIn() {
   function trySignInBasic() {
     // Fallback: sign in without drive.file scope
     try {
-      const client = google.accounts.oauth2.initTokenClient({
+      tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES_BASE,
         callback: async resp => {
@@ -895,6 +904,7 @@ function handleGoogleSignIn() {
             return;
           }
           token = resp.access_token;
+          tokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
           statusEl.textContent = 'Signed in (without file upload). Loading data...';
           await initAfterAuth();
         }
@@ -997,14 +1007,34 @@ async function loadFromDrive() {
 
 async function saveToDrive() {
   if (isDemoMode || !token) { saveLocal(); return; }
+  // Ensure token is valid before attempting save
+  const ok = await ensureToken();
+  if (!ok) { saveLocal(); return; } // token refresh failed — data saved locally
   setSyncStatus('syncing', 'Saving to Google Drive...');
   try {
     const body = JSON.stringify(db);
+    let r;
     if (driveFileId) {
-      const r = await fetch(
+      r = await fetch(
         'https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media',
         { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body }
       );
+      // 401 = token just expired mid-session → refresh and retry once
+      if (r.status === 401) {
+        setSyncStatus('syncing', 'Session expired — refreshing and retrying...');
+        try {
+          await refreshToken();
+          r = await fetch(
+            'https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media',
+            { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body }
+          );
+        } catch(e2) {
+          // Refresh failed — prompt user
+          saveLocal();
+          setSyncStatus('error', '⚠️ Session expired — data saved locally. Click SYNC after signing in again.');
+          return;
+        }
+      }
       if (!r.ok) throw new Error('Patch failed ' + r.status);
     } else {
       const form = new FormData();
@@ -1012,7 +1042,7 @@ async function saveToDrive() {
         name: DRIVE_DB_FILE, parents: ['appDataFolder']
       })], { type: 'application/json' }));
       form.append('file', new Blob([body], { type: 'application/json' }));
-      const r = await fetch(
+      r = await fetch(
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
         { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form }
       );
@@ -1022,7 +1052,8 @@ async function saveToDrive() {
     }
     setSyncStatus('synced', 'Saved — ' + now()); saveLocal();
   } catch(e) {
-    setSyncStatus('error', 'Save failed — ' + e.message + ' — saved locally'); saveLocal();
+    saveLocal();
+    setSyncStatus('error', 'Save failed — ' + e.message + ' — data saved locally ✓');
   }
 }
 
@@ -1033,6 +1064,48 @@ function saveDB() {
 }
 function syncNow() { saveToDrive(); }
 function now() { return new Date().toLocaleTimeString('en-IN'); }
+
+// ── TOKEN AUTO-REFRESH ──
+// Google OAuth tokens expire after ~1 hour. This silently refreshes
+// before expiry so saves never fail with 401.
+function isTokenExpired() {
+  return !token || Date.now() >= tokenExpiry;
+}
+
+function refreshToken() {
+  return new Promise((resolve, reject) => {
+    if (!tokenClient) { reject(new Error('No token client')); return; }
+    // Override callback just for this refresh
+    const origCallback = tokenClient.callback;
+    tokenClient.callback = (resp) => {
+      tokenClient.callback = origCallback; // restore
+      if (resp.error) { reject(new Error(resp.error)); return; }
+      token = resp.access_token;
+      tokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000) - 60000;
+      resolve(token);
+    };
+    tokenClient.requestAccessToken({ prompt: '' }); // silent — no popup
+  });
+}
+
+async function ensureToken() {
+  if (!isTokenExpired()) return true; // token still valid
+  try {
+    setSyncStatus('syncing', 'Refreshing session...');
+    await refreshToken();
+    return true;
+  } catch(e) {
+    // Silent refresh failed — show re-auth button
+    setSyncStatus('error', '⚠️ Session expired. Click here to sign in again →');
+    document.getElementById('syncBar').style.cursor = 'pointer';
+    document.getElementById('syncBar').onclick = () => {
+      document.getElementById('syncBar').onclick = null;
+      document.getElementById('syncBar').style.cursor = '';
+      handleGoogleSignIn();
+    };
+    return false;
+  }
+}
 
 // ============================================================
 // DRIVE FILE UPLOAD
@@ -1429,7 +1502,10 @@ function renderPtabMaterials(p) {
 function renderPtabDelivery(p) {
   const mats = db.materials.filter(m => m.projectId === p.id);
   const certs = db.certs.filter(c => c.projectId === p.id);
-  let html = '<div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" onclick="openCertModal(\'' + p.id + '\')">+ Add Test Certificate</button></div>';
+  let html = '<div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button class="btn btn-primary btn-sm" onclick="openDeliveryFromTab(\'' + p.id + '\')">+ Add Delivery</button>' +
+    '<button class="btn btn-outline btn-sm" onclick="openCertModal(\'' + p.id + '\')">+ Add Test Certificate</button>' +
+    '</div>';
   html += '<div class="card"><div class="card-title">Delivery Batches</div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Material</th><th>Challan No.</th><th>Qty</th><th>Date</th><th>Vehicle</th><th>Received By</th><th>Condition</th><th>Files</th></tr></thead><tbody>';
   const batches = db.batches.filter(b => mats.some(m => m.id === b.materialId));
   html += batches.map(b => {
@@ -2060,7 +2136,8 @@ async function addRevision() {
 
 async function addBatch() {
   const mid = document.getElementById('modal-addBatch').dataset.mid;
-  const m   = db.materials.find(x => x.id === mid); if (!m) return;
+  if (!mid) { alert('Please select a material from the dropdown above.'); return; }
+  const m   = db.materials.find(x => x.id === mid); if (!m) { alert('Material not found. Please select again.'); return; }
   const qty = +gv('bt-qty') || 0; if (qty <= 0) { alert('Enter valid quantity'); return; }
   const btn = document.getElementById('btn-bt-save');
   if (btn) { btn.disabled = true; btn.textContent = 'Uploading...'; }
@@ -2207,12 +2284,43 @@ function openModalForProject(modalName, pid) {
 
 function openRevisionModal(pid) { currentProject = pid; openModal('addRevision'); document.getElementById('rv-date').value = new Date().toISOString().split('T')[0]; }
 function openBatchModal(mid) {
+  // Called from Materials tab with a specific material ID
   const m = db.materials.find(x => x.id === mid); if (!m) return;
   const del = db.batches.filter(b => b.materialId === mid).reduce((s, b) => s + Number(b.qty), 0);
   document.getElementById('modal-addBatch').dataset.mid = mid;
   document.getElementById('batch-material-info').innerHTML = '<b>' + m.name + '</b><br>Required: ' + m.qty + ' ' + m.unit + ' | Ordered: ' + m.procured + ' ' + m.unit + ' | Delivered: ' + del + ' ' + m.unit + ' | Remaining: ' + (m.qty - del) + ' ' + m.unit;
   document.getElementById('bt-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('bt-material-row').style.display = 'none'; // hide picker when called from Materials tab
+  ['bt-no','bt-qty','bt-vehicle','bt-received','bt-remarks'].forEach(id => { const e = document.getElementById(id); if(e) e.value = id==='bt-qty'?'0':''; });
   openModal('addBatch');
+}
+
+function openDeliveryFromTab(pid) {
+  // Called from Delivery & Certs tab — show material picker
+  currentProject = pid;
+  const mats = db.materials.filter(m => m.projectId === pid);
+  if (!mats.length) { alert('No materials added for this project yet.\n\nGo to the Materials tab to add materials first, then add deliveries here.'); return; }
+  const sel = document.getElementById('bt-material-select');
+  sel.innerHTML = '<option value="">— Select a material —</option>' +
+    mats.map(m => {
+      const del = db.batches.filter(b => b.materialId === m.id).reduce((s, b) => s + Number(b.qty), 0);
+      return '<option value="' + m.id + '">' + m.name + ' (' + del + '/' + m.qty + ' ' + m.unit + ' delivered)</option>';
+    }).join('');
+  document.getElementById('bt-material-row').style.display = 'block';
+  document.getElementById('batch-material-info').innerHTML = '<span style="color:var(--muted)">Select a material above to see delivery details.</span>';
+  document.getElementById('modal-addBatch').dataset.mid = '';
+  document.getElementById('bt-date').value = new Date().toISOString().split('T')[0];
+  ['bt-no','bt-qty','bt-vehicle','bt-received','bt-remarks'].forEach(id => { const e = document.getElementById(id); if(e) e.value = id==='bt-qty'?'0':''; });
+  openModal('addBatch');
+}
+
+function updateBatchMaterialInfo() {
+  const mid = document.getElementById('bt-material-select').value;
+  document.getElementById('modal-addBatch').dataset.mid = mid;
+  if (!mid) { document.getElementById('batch-material-info').innerHTML = '<span style="color:var(--muted)">Select a material above.</span>'; return; }
+  const m = db.materials.find(x => x.id === mid); if (!m) return;
+  const del = db.batches.filter(b => b.materialId === mid).reduce((s, b) => s + Number(b.qty), 0);
+  document.getElementById('batch-material-info').innerHTML = '<b>' + m.name + '</b><br>Required: ' + m.qty + ' ' + m.unit + ' | Ordered: ' + m.procured + ' ' + m.unit + ' | Delivered: ' + del + ' ' + m.unit + ' | Remaining: ' + (m.qty - del) + ' ' + m.unit;
 }
 function openCertModal(pid)  { currentProject = pid; openModal('addCert');  document.getElementById('ct-date').value  = new Date().toISOString().split('T')[0]; }
 function openMIRModal(pid)   { currentProject = pid; populateAllSelects(); openModal('addMIR'); document.getElementById('mir-date').value = new Date().toISOString().split('T')[0]; }
